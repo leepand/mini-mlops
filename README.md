@@ -9,7 +9,7 @@ MLOps for (online) machine/reinforcement learning
 ---
 
 <p align="center">
-  <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/appveyor/tests/leepand/open-mlops" /></a>
+  <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/license/leepand/mini-mlops" /></a>
   <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/commit-activity/w/leepand/open-mlops" /></a>
   <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/pypi/format/algolink" /></a>
        <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/watchers/leepand/open-mlops?style=social" /></a>     
