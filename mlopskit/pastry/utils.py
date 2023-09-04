@@ -11,7 +11,7 @@ import datetime
 
 import contextlib
 import pathlib
-
+from pathlib import Path
 
 from typing import (
     IO,
@@ -23,6 +23,8 @@ from typing import (
     Type,
     Union,
 )
+
+PathLike = Union[str, os.PathLike]
 
 log = logging.getLogger("mlops")
 
@@ -163,3 +165,67 @@ def mkdir_exists_ok(dir_name: StrPath) -> None:
         raise FileExistsError(f"{dir_name!s} exists and is not a directory") from e
     except PermissionError as e:
         raise PermissionError(f"{dir_name!s} is not writable") from e
+
+
+def create_file(path: PathLike, content: str, pretend=False, encoding="utf-8"):
+    """Create a file in the given path.
+    This function reports the operation in the logs.
+    Args:
+        path: path in the file system where contents will be written.
+        content: what will be written.
+        pretend (bool): false by default. File is not written when pretending,
+            but operation is logged.
+    Returns:
+        Path: given path
+    """
+    path = Path(path)
+    if not pretend:
+        path.write_text(content, encoding=encoding)
+
+    # logger.report("create", path)
+    return path
+
+
+def create_structure(project_main_dir, project_name, model_name, version):
+    structure = {
+        "README.md": {
+            "content": README.substitute(new_proj=project_name),
+            "is_dir": False,
+        },
+        "Makefile": {"content": MAKEFILE, "is_dir": False},
+        "tests": {"content": "", "is_dir": True},
+        "notebooks": {"content": "", "is_dir": True},
+        "config": {"content": "", "is_dir": True},
+        "db": {"content": "", "is_dir": True},
+        "src/recomserver.py": {
+            "content": RECOMSERVER.substitute(name=model_name, version=version),
+            "is_dir": False,
+            "rel_path": "src",
+        },
+        "src/rewardserver.py": {
+            "content": REWARDSERVER.substitute(name=model_name, version=version),
+            "is_dir": False,
+            "rel_path": "src",
+        },
+        "bin/kill_recom.py": {"content": KILLPORT, "is_dir": False, "rel_path": "bin"},
+        "bin/kill_reward.py": {"content": KILLPORT, "is_dir": False, "rel_path": "bin"},
+        "bin/run_reward.sh": {
+            "content": RUN_REWARD,
+            "is_dir": False,
+            "rel_path": "bin",
+        },
+        "bin/run_recom.sh": {"content": RUN_RECOM, "is_dir": False, "rel_path": "bin"},
+    }
+    for file_name, _content in structure.items():
+        if _content.get("rel_path"):
+            rel_path = _content.get("rel_path")
+            content = _content.get("content")
+            file_dir = os.path.join(project_main_dir, rel_path)
+            os.makedirs(file_dir, exist_ok=True)
+            create_file(os.path.join(project_main_dir, file_name), content)
+        else:
+            if _content.get("is_dir"):
+                os.makedirs(os.path.join(project_main_dir, file_name), exist_ok=True)
+            else:
+                content = _content.get("content")
+                create_file(os.path.join(project_main_dir, file_name), content)
