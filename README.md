@@ -1,20 +1,17 @@
-# mini-mlops
-MLOps for (online) machine/reinforcement learning
-
 <h1 align="center"><a href="https://github.com/leepand/open-mlops">mlopskit</a></h1>
 <p align="center">
-  <em>用于生产 MLOps 的Python简易框架</em>
+  <em>MLOps for (online) machine/reinforcement learning</em>
 </p>
 
 ---
 
 <p align="center">
   <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/license/leepand/mini-mlops" /></a>
-  <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/commit-activity/w/leepand/open-mlops" /></a>
-  <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/pypi/format/algolink" /></a>
-       <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/watchers/leepand/open-mlops?style=social" /></a>     
-   <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/forks/leepand/open-mlops?style=social" /></a>   
-   <a href="https://github.com/leepand/open-mlops"><img src="https://img.shields.io/github/stars/leepand/open-mlops?style=social" /></a>   
+  <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/issues/leepand/mini-mlops" /></a>
+   <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/watchers/leepand/mini-mlops" /></a> 
+  <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/forks/leepand/mini-mlops" /></a>    
+   <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/stars/leepand/mini-mlops" /></a>   
+   <a href="https://github.com/leepand/mini-mlops"><img src="https://img.shields.io/github/commit-activity/m/leepand/mini-mlops" /></a>   
    
 </p>
 
