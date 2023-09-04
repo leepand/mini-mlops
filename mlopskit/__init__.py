@@ -11,5 +11,4 @@ from .pipe import Pipe
 # https://github.com/tensorflow/tensorflow/issues/30427
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-
 __version__ = "2.0.2"
