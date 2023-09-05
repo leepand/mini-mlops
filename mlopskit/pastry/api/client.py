@@ -3,9 +3,15 @@ import requests
 import urllib.parse
 import os
 import pathlib
+import hirlite
 
-from mlopskit.utils.file_utils import data_dir, make_containing_dirs
+from mlopskit.utils.file_utils import (
+    data_dir,
+    make_containing_dirs,
+    path_to_local_sqlite_uri,
+)
 from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
+from mlopskit.ext.store.sqlite.sqlite_data import SQLiteData
 from mlopskit.pastry.mlflow_rest_client import MLflowRESTClient
 from mlopskit.io import sfdb
 from mlopskit.config import DEFAULT_SERVER_CONFIG
@@ -223,3 +229,103 @@ class HTTPClient(SDK):
             model_key = f"{model_name}:port"
             meta = db.get(model_key)
         return meta
+
+    def update_model_meta(self, model_name, **kwargs):
+        _kwargs = kwargs.copy()
+        VALID_MODEL_STATUS = ("stoped", "running")
+        status = _kwargs.pop("status", "running")
+        assert (
+            status in VALID_MODEL_STATUS
+        ), f"model service status: {status} not supported. Valid model service status are {VALID_MODEL_STATUS}"
+        init_db_file = os.path.join(self.mlflow_art_path, "model_meta.db")
+
+        version = _kwargs.pop("version", None)
+
+        with sfdb.Database(filename=init_db_file) as db:
+            model_key = f"{model_name}:port"
+            meta = db.get(model_key)
+            _kwargs["status"] = status
+            if meta is None:
+                meta = {}
+                if version:
+                    meta[version] = {}
+                    for k, v in _kwargs.items():
+                        meta[version][k] = v
+                else:
+                    for k, v in _kwargs.items():
+                        meta[k] = v
+
+            else:
+                if version:
+                    if not meta.get(version):
+                        meta[version] = {}
+                    for k, v in _kwargs.items():
+                        meta[version][k] = v
+                else:
+                    for k, v in _kwargs.items():
+                        meta[k] = v
+
+            db[model_key] = meta
+
+    def build_data_store(
+        self, name, version, db_name=None, db_type="sqlite", return_type="dbobj"
+    ):
+        VALID_DB_TYPES = ("sqlite", "postgres")
+        assert (
+            db_type in VALID_DB_TYPES
+        ), f"DB cache type {db_type} not supported. Valid db types are {VALID_DB_TYPES}"
+        db_base_path = self.mlflow_art_path
+        source = self.mlflow_client.get_model_version_download_url(name, version)
+        (path, filename) = os.path.split(source)
+
+        if db_name is None:
+            db_name = "sqlite_logs.db"
+
+        if db_type == "sqlite":
+            db_file = os.path.join(db_base_path, path, db_name)
+            if return_type == "dbobj":
+                db_store = SQLiteData(path_to_local_sqlite_uri(db_file), init_db=True)
+            else:
+                db_store = path_to_local_sqlite_uri(db_file)
+        else:
+            db_store = None
+        return db_store
+
+    def build_cache_store(
+        self,
+        name,
+        version,
+        db_name="rlite_model.cache",
+        db_type="rlite",
+        return_type="dbobj",
+    ):
+        VALID_DB_TYPES = ("rlite", "redis", "diskcache", "sfdb")
+        assert (
+            db_type in VALID_DB_TYPES
+        ), f"DB cache type {db_type} not supported. Valid db types are {VALID_DB_TYPES}"
+        VALID_RETURN_TYPES = ("dblink", "dbobj")
+        assert (
+            return_type in VALID_RETURN_TYPES
+        ), f"Return type {return_type} not supported. Valid return types are {VALID_RETURN_TYPES}"
+        db_base_path = self.mlflow_art_path
+        source = self.mlflow_client.get_model_version_download_url(name, version)
+        (path, filename) = os.path.split(source)
+        db_file = os.path.join(db_base_path, path, db_name)
+        if db_type == "rlite":
+            db_store = hirlite.Rlite(db_file, encoding="utf8")
+        elif db_type == "diskcache":
+            import diskcache as dc
+
+            db_store = dc.Cache(db_file)
+        elif db_type == "sfdb":
+            from mlopskit.io import sfdb
+
+            db_store = sfdb.Database(filename=db_file)
+
+        else:
+            db_store = None
+
+        if return_type == "dblink":
+            return db_file
+        else:
+            return db_store
