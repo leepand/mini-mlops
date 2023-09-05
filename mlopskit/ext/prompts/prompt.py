@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 from string import Formatter
+import pkg_resources
+import os
 
 from .base import (
     check_valid_template,
@@ -166,3 +168,29 @@ class PromptTemplate:
             partial_variables=_partial_variables,
             **kwargs,
         )
+
+
+# For backwards compatibility.
+Prompt = PromptTemplate
+
+PACKAGE_NAME = "mlopskit"
+
+
+def create_template(filename, input_variables, template_format="f-string", **kwargs):
+    file_path = pkg_resources.resource_filename(
+        PACKAGE_NAME, f"ext/templates/{filename}"
+    )
+    file_template = PromptTemplate.from_file(
+        file_path, input_variables=input_variables, template_format=template_format
+    )
+    file_contents = file_template.format(**kwargs)
+
+    # file_write_path = os.path.join(project_path, filename)
+    return file_contents
+
+
+def readfile(sh, filename):
+    file_path = pkg_resources.resource_filename(
+        PACKAGE_NAME, f"ext/templates/{filename}"
+    )
+    return sh.read(file_path)
