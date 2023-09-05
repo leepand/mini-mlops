@@ -1,31 +1,24 @@
-from curses.ascii import FF
 import functools
-from mimetypes import suffix_map
-from stat import SF_APPEND
-import dill
 from typing import Optional
 from fastapi import Depends, File, Form, FastAPI, UploadFile
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse
 import pydantic
 from ..dam import Dam
-from ..types import Label
-import base64
 import traceback
 import os
 from .. import utils
 from ..mlflow_rest_client import MLflowRESTClient
-from mlopskit.ext.store import YAMLDataSet
-import subprocess
+from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
 from mlopskit.utils import kill9_byport
-from mlopskit.ext.tinydb import TinyDB, Query
+from mlopskit.utils.read_log import LogReader
+from mlopskit.utils.file_utils import data_dir
 
 from datetime import datetime
 
 
 api = FastAPI()
 
-home_path = os.environ["HOME"]
+home_path = data_dir()
 default_config = os.path.join(home_path, "mlops_config.yml")
 default_config_exists = os.path.exists(os.path.join(home_path, "mlops_config.yml"))
 try:
@@ -40,25 +33,6 @@ except:
     print(str(traceback.format_exc()))
 
 
-def get_tail_n_info(n, LOG_FILE):
-    """
-    tail按行获取
-    :param n: 行数
-    :return:
-    """
-    try:
-        tail_pipe = os.popen(f"tail -n {n} {LOG_FILE} ")
-    except:
-        print(f"文件{LOG_FILE}不存在")
-        return ""
-    else:
-
-        tail_output = iter(tail_pipe.readlines())
-        tail_pipe.close()
-
-    return tail_output
-
-
 class Settings(pydantic.BaseSettings):
     dam: Dam = None
     filestore_dir: str = os.environ.get("FILESTORE_DIR", os.getcwd())
@@ -67,10 +41,6 @@ class Settings(pydantic.BaseSettings):
 @functools.lru_cache()
 def get_settings():
     return Settings()
-
-
-def deserialize_model(model_bytes):
-    return dill.loads(base64.b64decode(model_bytes.encode("ascii")))
 
 
 @api.post("/models/serving_status")
@@ -105,11 +75,8 @@ async def serving_status(
         main_path = os.path.join(mlflow_art_path, _main_path)
         logfile = os.path.join(main_path, "run.log")
         result = []
-        for line in get_tail_n_info(n=tail_n, LOG_FILE=logfile):
-            if line.strip():
-                result.append(line)
-        log_str = "\n".join(result)
-        return {"log_str": log_str, "port_status": port_status}
+        log = LogReader(logfile, buffer_size=tail_n)
+        return {"log_str": log.read(), "port_status": port_status}
 
 
 @api.post("/models/killservice")
@@ -118,13 +85,11 @@ async def kill_model_service(
     author: str = Form(...),
 ):
     metadb_path = os.path.join(mlflow_art_path, "service_ops.json")
-    metadb = TinyDB(metadb_path)
     # current date and time
     curDT = datetime.now()
     # current date and time
     date_time = curDT.strftime("%m/%d/%Y, %H:%M:%S")
     print("date and time:", date_time)
-    metadb.insert({"port": port, "ops_user": author, "ops_date": date_time})
     try:
         kill9_byport(str(port))
         fd_pid = os.popen("lsof -i:%s|awk '{print $2}'" % str(port))
@@ -166,8 +131,6 @@ async def serving_model(
                 to_be_servemodel = fname  # model_file
                 _main_path = dirpath
             main_path = os.path.join(mlflow_art_path, _main_path)
-            metadb_path = os.path.join(main_path, "model_meta.json")
-            metadb = TinyDB(metadb_path)
             # current date and time
             curDT = datetime.now()
 
@@ -175,15 +138,6 @@ async def serving_model(
             date_time = curDT.strftime("%m/%d/%Y, %H:%M:%S")
             print("date and time:", date_time)
 
-            metadb.insert(
-                {
-                    "name": name,
-                    "version": version,
-                    "port": port,
-                    "creation_date": date_time,
-                    "main_py": to_be_servemodel,
-                }
-            )
             main_command = f"python {to_be_servemodel}"
             logfile = os.path.join(main_path, "run.log")
             # write Makefile
@@ -215,7 +169,6 @@ async def post_model(
     name: str = Form(...),
     version: str = Form(...),
     if_new_version: str = Form(...),
-    model_bytes: str = File(...),
     artifact_location: str = File(...),
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
@@ -235,11 +188,7 @@ async def post_model(
                 to_dir = os.path.join(dir_name, file_dir)
                 print(to_dir, "to_dir")
                 utils.unzip(file_store, to_dir)
-            # model = deserialize_model(model_bytes)
-            # settings.dam.store_model(name, model)
-        else:
-            model = deserialize_model(model_bytes)
-            settings.dam.store_model(name, model)
+
         if if_new_version == "1":
             return {"status": "ok", "details": f"model version {version} is created!"}
         else:
@@ -250,67 +199,7 @@ async def post_model(
 
 @api.get("/models/pull")
 async def pull_file(name: str, version: str):
-    # mlflow_client.get_model_version(name, version)
     source = mlflow_client.get_model_version_download_url(name, version)
-    # file_path = "/Users/leepand/Downloads/codes/red_bird.py"
-    # d_to = "/Users/leepand/Downloads/codes/mlops-test/red_bird.py"
     mlflow_remote_base_path = mlflow_art_path
     file_to_pull = os.path.join(mlflow_remote_base_path, source)
     return FileResponse(path=file_to_pull, filename=file_to_pull)
-
-
-@api.delete("/models/{name}")
-async def delete_model(name: str, settings: Settings = Depends(get_settings)):
-    settings.dam.model_store.delete(name)
-
-
-@api.get("/models/")
-async def get_models(settings: Settings = Depends(get_settings)):
-
-    return settings.dam.model_store.list_names()
-
-
-class PredictIn(pydantic.BaseModel):
-    event: dict
-    loop_id: Optional[str] = None
-
-
-@api.post("/predict/{model_name}")
-async def predict(
-    model_name: str,
-    payload: PredictIn,
-    settings: Settings = Depends(get_settings),
-):
-    prediction = settings.dam.make_prediction(
-        event=payload.event, model_name=model_name, loop_id=payload.loop_id
-    )
-    return jsonable_encoder(prediction)
-
-
-class LabelIn(pydantic.BaseModel):
-    label: str
-
-
-@api.post("/label/{loop_id}")
-async def label(
-    loop_id: str,
-    payload: LabelIn,
-    settings: Settings = Depends(get_settings),
-):
-    settings.dam.store_label(loop_id=loop_id, label=payload.label)
-
-
-@api.post("/train/{model_name}")
-async def train(
-    model_name: str,
-    settings: Settings = Depends(get_settings),
-):
-    n_rows = settings.dam.train_model(model_name=model_name)
-    return {"n_rows": n_rows}
-
-
-@api.post("/_clear/data-store")
-async def _clear_data_store(
-    settings: Settings = Depends(get_settings),
-):
-    settings.dam.data_store.clear()
