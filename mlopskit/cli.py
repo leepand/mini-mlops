@@ -205,14 +205,17 @@ def run(service):
         )
 
     mlflow_workspace = os.path.join(base_path, "mlflow_workspace")
+    sh.mkdir(mlflow_workspace)
     mlopskit_config_json = YAMLDataSet(mlopskit_config).load()
     mlflow_url = mlopskit_config_json.get("mlflow_url")
+    model_server_url = mlopskit_config_json.get("model_url")
+    model_server_port = model_server_url.split(":")[-1]
     mlflow_port = mlflow_url.split(":")[-1]
-    mlflow_port_status = get_port_status(mlflow_port)
     # logger.info(f"mlflow_port_status: {mlflow_port_status}!", port=mlflow_port_status)
 
     # start mlflow service
     if service in ["mlflow", "all"]:
+        mlflow_port_status = get_port_status(mlflow_port)
         if mlflow_port_status == "running":
             c = input(f"Confirm kill the mlflow port {mlflow_port} (y/n)")
             if c == "n":
@@ -222,7 +225,6 @@ def run(service):
                 time.sleep(1)
                 logger.warning(f"port {mlflow_port} is killed!", name="mlflow service")
 
-        sh.mkdir(mlflow_workspace)
         with sh.cd(mlflow_workspace):
             sh.write(
                 "run.sh",
@@ -238,3 +240,38 @@ def run(service):
                 f"stdout info: {mlflow_run_msg}!",
                 name="mlflow service serving",
             )
+    # start model server
+    if service in ["model_server", "all"]:
+        model_server_port_status = get_port_status(model_server_port)
+        if model_server_port_status == "running":
+            c = input(f"Confirm kill the model server port {model_server_port} (y/n)")
+            if c == "n":
+                return None
+            else:
+                kill9_byport(model_server_port)
+                time.sleep(1)
+                logger.warning(
+                    f"port {model_server_port} is killed!", name="model server service"
+                )
+        with sh.cd(mlflow_workspace):
+            sh.write(
+                os.path.join(mlflow_workspace, "model_server.py"),
+                "from mlopskit.pastry.dam import Dam\ndam = Dam()\n",
+            )
+
+            # 5005 与HTTPClient().get_config() 中的model_url的ip和port一致
+            sh.write(
+                os.path.join(mlflow_workspace, "run_model_server.sh"),
+                f"uvicorn model_server:dam.http_server --host 0.0.0.0 --port {model_server_port}",
+            )
+
+            model_server_run_msg = start_service(
+                "nohup sh run_model_server.sh > run_model_server.log 2>&1 &"
+            )
+
+            logger.info(
+                f"stdout info: {model_server_run_msg}!",
+                name="model server service serving",
+            )
+        # start main serivce UI
+        
