@@ -21,7 +21,12 @@ from mlopskit.utils.file_utils import data_dir
 from mlopskit.utils.shell_utils import get_port_status, start_service
 from mlopskit.utils.killport import kill9_byport
 from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
-from mlopskit.config import SERVER_PORT_CONFIG, DEFAULT_SERVER_CONFIG, FRONTEND_PATH
+from mlopskit.config import (
+    SERVER_PORT_CONFIG,
+    DEFAULT_SERVER_CONFIG,
+    FRONTEND_PATH,
+    SERVER_PATH,
+)
 
 from structlog import get_logger
 
@@ -281,13 +286,19 @@ def run(service, build):
                 f"stdout info: {model_server_run_msg}!",
                 name="model server service serving",
             )
-        if service in ["main", "all"]:
-            # start main serivce UI
-            if build == "true":
-                print("####### BUILDING FRONTEND #######")
-                with sh.cd(FRONTEND_PATH):
-                    build_msg = start_service("npm install && npm run build")
-                    logger.info(
-                        f"build ui info: {build_msg}!",
-                        name="main service",
-                    )
+    if service in ["main", "all"]:
+        # start main serivce UI
+        if build == "true":
+            print("####### BUILDING FRONTEND #######")
+            with sh.cd(FRONTEND_PATH):
+                build_msg = start_service("npm install && npm run build", timeout=3600)
+                logger.info(
+                    f"build ui info: {build_msg}!",
+                    name="main service",
+                )
+                index_file_src = os.path.join(FRONTEND_PATH, "dist/index.html")
+                index_file_dst = os.path.join(SERVER_PATH, "templates/index.html")
+                main_files_src = os.path.join(FRONTEND_PATH, "dist")
+                main_files_dst = os.path.join(SERVER_PATH, "static")
+                sh.cp(src=index_file_src, dst=index_file_dst)
+                sh.cp(src=main_files_src, dst=main_files_dst)

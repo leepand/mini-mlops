@@ -263,3 +263,4 @@ SERVER_PORT_CONFIG = {
 }
 
 FRONTEND_PATH = "/Users/leepand/同步空间/codes/mini-mlops/frontend"
+SERVER_PATH = "/Users/leepand/同步空间/codes/mini-mlops/mlopskit/server"

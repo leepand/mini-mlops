@@ -29,7 +29,7 @@ def get_port_status(port):
         return f"Error: {e}"
 
 
-def start_service(script):
+def start_service(script, timeout=240):
     try:
         # 执行shell命令并捕获日志
         process = subprocess.run(
@@ -38,7 +38,7 @@ def start_service(script):
             capture_output=True,
             preexec_fn=os.setsid,
             text=True,
-            timeout=10,  # 设定超时时间
+            timeout=timeout,  # 设定超时时间
             check=True,  # 检查命令执行结果，若返回非零状态码则抛出异常
         )
 
