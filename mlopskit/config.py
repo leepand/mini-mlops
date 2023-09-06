@@ -240,3 +240,24 @@ class ServerConfig(Config):
     serving = Param("serving", default="true", parser=bool)
     server_name = Param("server_name", default="recomserver", parser=str)
     prebuild_path = Param("prebuild_path", default="src", parser=str)
+
+
+SERVER_PORT_CONFIG = {
+    "ops_servers": ["recomserver", "rewardserver"],
+    "recomserver": {
+        "host": "0.0.0.0",
+        "ports": [4001],
+        "prebuild_path": "src",
+        "server_name": "recomserver",
+        "serving": True,
+        "workers": 4,
+    },
+    "rewardserver": {
+        "host": "0.0.0.0",
+        "ports": [5001],
+        "prebuild_path": "src",
+        "server_name": "rewardserver",
+        "serving": True,
+        "workers": 4,
+    },
+}
