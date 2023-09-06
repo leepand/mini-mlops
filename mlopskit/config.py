@@ -261,3 +261,5 @@ SERVER_PORT_CONFIG = {
         "workers": 4,
     },
 }
+
+FRONTEND_PATH = "/Users/leepand/同步空间/codes/mini-mlops/frontend"

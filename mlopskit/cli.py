@@ -21,7 +21,7 @@ from mlopskit.utils.file_utils import data_dir
 from mlopskit.utils.shell_utils import get_port_status, start_service
 from mlopskit.utils.killport import kill9_byport
 from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
-from mlopskit.config import SERVER_PORT_CONFIG, DEFAULT_SERVER_CONFIG
+from mlopskit.config import SERVER_PORT_CONFIG, DEFAULT_SERVER_CONFIG, FRONTEND_PATH
 
 from structlog import get_logger
 
@@ -184,7 +184,15 @@ def init_fromgit(project):
     default="all",
     show_default=True,
 )
-def run(service):
+@click.option(
+    "--build",
+    "-b",
+    help="build main ui service",
+    type=str,
+    default="false",
+    show_default=True,
+)
+def run(service, build):
     """
     start services: main/mlflow/model server.
     """
@@ -273,5 +281,13 @@ def run(service):
                 f"stdout info: {model_server_run_msg}!",
                 name="model server service serving",
             )
-        # start main serivce UI
-        
+        if service in ["main", "all"]:
+            # start main serivce UI
+            if build == "true":
+                print("####### BUILDING FRONTEND #######")
+                with sh.cd(FRONTEND_PATH):
+                    build_msg = start_service("npm install && npm run build")
+                    logger.info(
+                        f"build ui info: {build_msg}!",
+                        name="main service",
+                    )
