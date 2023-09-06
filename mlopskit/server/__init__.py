@@ -21,7 +21,9 @@ default_config_exists = os.path.exists(os.path.join(home_path, "mlops_config.yml
 if default_config_exists:
     config = YAMLDataSet(default_config).load()
     mlflow_url_local = config.get("mlflow_url_local")
-    mlops_art_basepath = config.get("mlflow_art_path", os.getcwd())
+    mlops_art_basepath = os.path.join(
+        home_path, "mlflow_workspace"
+    )  # config.get("mlflow_art_path", os.getcwd())
     mlflow_client = MlflowClient(tracking_uri=mlflow_url_local)
     mlflow_local_server_uri = mlflow_url_local
     mlops_sqlite_db = config.get("mlops_sqlite_db")

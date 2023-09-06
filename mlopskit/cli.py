@@ -336,8 +336,27 @@ def run(service, build, host, port, backend):
                 sh.cp(src=index_file_src, dst=index_file_dst)
                 sh.cp(src=main_files_src, dst=main_files_dst)
 
+            return "build done!"
+
+        main_server_port_status = get_port_status(port)
+        if main_server_port_status == "running":
+            c = input(f"Confirm kill the model server port {port} (y/n)")
+            if c == "n":
+                return None
+            else:
+                kill9_byport(port)
+                time.sleep(1)
+                logger.warning(f"port {port} is killed!", name="model server service")
+
         if backend == "true":
-            pass
+            with sh.cd(mlflow_workspace):
+                main_service_msg = start_service(
+                    script=f"nohup gunicorn --workers=3 -b {host}:{port}  server.wsgi:app >main_server.log 2>&1 &"
+                )
+                logger.info(
+                    f"serving ui info: {main_service_msg}!",
+                    name="main service serving",
+                )
         else:
             path = os.path.realpath(os.path.dirname(__file__))
             with sh.cd(path):

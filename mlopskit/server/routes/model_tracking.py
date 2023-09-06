@@ -144,8 +144,8 @@ def getRegisteredModels():
     registered_models = []
     # with open("/Users/leepand/Downloads/codes/mlops-test/modelinfo.json", "w") as f:
     #    json.dump(data, f)
+    model_meta = {}
     if data:
-        model_meta = {}
         for model in data["registered_models"]:
             model_new_dict = {}
             model_new_dict["name"] = model["name"]
