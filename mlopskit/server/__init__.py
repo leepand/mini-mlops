@@ -31,6 +31,7 @@ else:
     mlops_sqlite_db = CONFIG["mlops_sqlite_db"]
     mlops_art_basepath = CONFIG["mlops_art_basepath"]
 
+mlops_sqlite_db = os.path.join(home_path, "mlflow_workspace/mlops_meta.sqlite")
 defa_db_uri = path_to_local_sqlite_uri(mlops_sqlite_db)
 sys_db_uri = os.environ.get("DATABASE_URL", defa_db_uri)
 

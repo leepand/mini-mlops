@@ -16,7 +16,7 @@ from rich.tree import Tree
 
 from mlopskit.assets.cli import assets_cli
 import mlopskit.ext.shellkit as sh
-from mlopskit.ext.prompts.prompt import create_template, readfile
+from mlopskit.ext.prompts.prompt import create_template, readfile, PromptTemplate
 from mlopskit.utils.file_utils import data_dir
 from mlopskit.utils.shell_utils import get_port_status, start_service
 from mlopskit.utils.killport import kill9_byport
@@ -197,7 +197,30 @@ def init_fromgit(project):
     default="false",
     show_default=True,
 )
-def run(service, build):
+@click.option(
+    "--host",
+    "-h",
+    help="host of  main ui service",
+    type=str,
+    default="0.0.0.0",
+    show_default=True,
+)
+@click.option(
+    "--port",
+    "-p",
+    help="port of  main ui service",
+    type=str,
+    default="8080",
+    show_default=True,
+)
+@click.option(
+    "--backend",
+    help="run backend of  main ui service",
+    type=str,
+    default="false",
+    show_default=True,
+)
+def run(service, build, host, port, backend):
     """
     start services: main/mlflow/model server.
     """
@@ -291,10 +314,20 @@ def run(service, build):
         if build == "true":
             print("####### BUILDING FRONTEND #######")
             with sh.cd(FRONTEND_PATH):
+                # read API.js
+                js_file_path = os.path.join(FRONTEND_PATH, "src/api/api.js")
+                api_file_template = PromptTemplate.from_file(
+                    js_file_path,
+                    input_variables=["host", "port"],
+                    template_format="jinja2",
+                )
+                api_js_contents = api_file_template.format(host=host, port=port)
+                sh.write(js_file_path, api_js_contents)
+
                 build_msg = start_service("npm install && npm run build", timeout=3600)
                 logger.info(
                     f"build ui info: {build_msg}!",
-                    name="main service",
+                    name="main service build",
                 )
                 index_file_src = os.path.join(FRONTEND_PATH, "dist/index.html")
                 index_file_dst = os.path.join(SERVER_PATH, "templates/index.html")
@@ -302,3 +335,16 @@ def run(service, build):
                 main_files_dst = os.path.join(SERVER_PATH, "static")
                 sh.cp(src=index_file_src, dst=index_file_dst)
                 sh.cp(src=main_files_src, dst=main_files_dst)
+
+        if backend == "true":
+            pass
+        else:
+            path = os.path.realpath(os.path.dirname(__file__))
+            with sh.cd(path):
+                main_service_msg = start_service(
+                    script=f"gunicorn --workers=3 -b {host}:{port}  server.wsgi:app >>web-predict.log;"
+                )
+                logger.info(
+                    f"serving ui info: {main_service_msg}!",
+                    name="main service serving",
+                )
