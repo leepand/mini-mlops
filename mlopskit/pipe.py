@@ -2,9 +2,9 @@ import os, shutil, time, fnmatch, re, copy, itertools
 from pathlib import Path, PurePosixPath
 import warnings, logging
 
-from mlopskit.ext.tinydb_serialization import SerializationMiddleware
-from mlopskit.ext.tinydb_serializers import DateTimeSerializer
-from mlopskit.ext.tinydb import TinyDB, Query
+from mlopskit.ext.store.tinydb.tinydb_serialization import SerializationMiddleware
+from mlopskit.ext.store.tinydb.tinydb_serializers import DateTimeSerializer
+from mlopskit.ext.store.tinydb import TinyDB, Query
 
 from datetime import datetime
 from .utils.pipe_utils import filemd5, copytree, ConfigManager
