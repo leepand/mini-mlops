@@ -351,7 +351,7 @@ def run(service, build, host, port, backend):
         if backend == "true":
             with sh.cd(mlflow_workspace):
                 main_service_msg = start_service(
-                    script=f"nohup gunicorn --workers=3 -b {host}:{port}  server.wsgi:app >main_server.log 2>&1 &"
+                    script=f"nohup gunicorn --workers=3 -b {host}:{port}  mlopskit.server.wsgi:app >main_server.log 2>&1 &"
                 )
                 logger.info(
                     f"serving ui info: {main_service_msg}!",

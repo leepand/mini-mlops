@@ -4,7 +4,8 @@ from mlopskit.core.library import ModelLibrary, load_model  # NOQA
 from mlopskit.core.model import Model  # NOQA
 from mlopskit.api import serving
 
-# from mlopskit.pastry.api import make
+from mlopskit.pastry.api import make
+
 # from .pipe import Pipe
 
 # Silence Tensorflow warnings

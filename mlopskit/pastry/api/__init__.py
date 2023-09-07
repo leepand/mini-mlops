@@ -1,1 +1,1 @@
-# from .registration import make
+from .registration import make
