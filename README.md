@@ -38,6 +38,36 @@ mlopskit run -s all --backend true
 2023-09-07 16:58:06 [debug    ] your script nohup gunicorn --workers=3 -b 0.0.0.0:8080  mlopskit.server.wsgi:app >main_server.log 2>&1 & is processed success
 2023-09-07 16:58:06 [info     ] serving ui info: your script is processed success! name=main service serving
 ```
+
+创建新项目（模型）:
+
+项目名称-mlops_new_proj，模型名称-new_model，模型版本-2:
+
+```
+mlopskit init -p mlops_new_proj -m new_model -v 2
+# 创建成功日志：
+# 2023-09-07 16:43:28 [info     ] Project mlops_new_proj is created! name=mlops_new_proj
+```
+
+模型注册：
+
+```
+mlopskit regmodel --name new_model --filesdir mlops_new_proj
+```
+
+模型注册成功日志示例：
+
+```bash
+Confirm register model new_model files to remote repository (y/n)y
+2023-09-07 17:23:26 [info     ] APIs of mlopskit               model_name=new_model model_version=None ops_type=model
+2023-09-07 17:23:26 [info     ] The list of all versions for the current model is [1, 2, 3, 4].
+2023-09-07 17:23:26 [warning  ] Using the latest versioned model `4` instead of the unversioned model `None`.If you insist on doing so, we will create a new version `5` for you.
+2023-09-07 17:23:26 [info     ] Usage of mlopskit-model        Params={'ops_type': 'push/pull/serving/predict/killservice/serving_status, default:push'}
+2023-09-07 17:23:26 [info     ] Usage of mlopskit-push         Params={'to_push_file': 'model file/dir to upload to remote model space', 'push_type': 'file/pickle, default: file'}
+2023-09-07 17:23:26 [info     ] Usage of mlopskit-pull         Params={'save_path': 'local path to download model'}
+2023-09-07 17:23:27 [info     ] model version 5 is created!
+```
+
 模型部署
 
 `mlopskit`使用mlflow进行模型实验的跟踪、模型注册等功能，并提供了一种直接且一致的方式来将预测代码封装在一个Model类中：
