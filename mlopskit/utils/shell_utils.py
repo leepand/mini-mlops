@@ -3,10 +3,20 @@ import mlopskit.ext.shellkit as sh
 import subprocess
 import traceback
 import os
+import sys
+import time
 
 from structlog import get_logger
 
 logger = get_logger(__name__)
+
+
+def get_python_version():
+    """
+    :return: Current python version in 'major.minor.micro' format
+    """
+    major, minor, micro, *_ = sys.version_info
+    return f"{major}.{minor}.{micro}"
 
 
 def get_port_status(port):
@@ -53,3 +63,21 @@ def start_service(script, timeout=240):
         return f"Error: {e}"
     except subprocess.TimeoutExpired:
         return "Command execution timed out"
+
+
+def wait_until_port_used(port, max_wait_sec=15, interval_sec=0.5):
+    """
+    wait until the port is used.  *Notice this function will invoke\
+    a bash shell to execute command [netstat]!*
+
+    :return:
+        return True if the port is used
+    """
+    curr_wait_sec = 0
+
+    while curr_wait_sec < max_wait_sec:
+        if get_port_status(port) == "running":
+            return True
+        curr_wait_sec += interval_sec
+        time.sleep(interval_sec)
+    return False
