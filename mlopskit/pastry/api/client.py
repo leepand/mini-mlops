@@ -67,10 +67,9 @@ class HTTPClient(SDK):
         self.mlflow_client = MLflowRESTClient(
             mlflow_url, ignore_ssl_check=ignore_ssl_check, **kwargs
         )
+        self.host = model_url
 
-    def push_model(
-        self, name: str, version=None, to_push_file=None, run_id=None, tags=None
-    ):
+    def push(self, name: str, version=None, to_push_file=None, run_id=None, tags=None):
         if tags:
             model = self.mlflow_client.get_or_create_model(name, tags=tags)
         else:
@@ -130,7 +129,7 @@ class HTTPClient(SDK):
                 files=_f,
             )
 
-    def pull_model(self, name: str, version: str, save_path: str = os.getcwd()):
+    def pull(self, name: str, version: str, save_path: str = os.getcwd()):
         resp = self.request(
             "GET",
             "models/pull",

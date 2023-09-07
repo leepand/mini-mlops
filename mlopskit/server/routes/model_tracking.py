@@ -31,7 +31,6 @@ from nbconvert import HTMLExporter
 
 from sqlalchemy_paginator import Paginator
 from pyjackson import deserialize, serialize
-from mlopskit.pastry.loop import Prediction
 
 from .response import Response
 from structlog import get_logger

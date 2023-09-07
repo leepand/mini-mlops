@@ -171,7 +171,7 @@ def make(
         host = _kwargs.get("host")
         config = _kwargs.get("config")
 
-        client = HTTPClient(host=host, config=config)
+        client = HTTPClient(host=host, config_file=config)
         if id.startswith("client") and id.endswith("client"):
             p = {"host": "set/get, default:get", "config": "config file, default:None"}
             logger.info(
@@ -182,7 +182,7 @@ def make(
             msg = "Return of mlopskit-client: HTTPClient"
             if help:
                 return
-            return HTTPClient(host=host, config=config)
+            return HTTPClient(host=host, config_file=config)
         ns, name, version = parse_env_id(id)
         if not ns:
             msg = (
@@ -492,22 +492,16 @@ def make(
                     )
                     return
                 push_type = _kwargs.get("push_type", "file")
-                experiment_id = _kwargs.get("experiment_id")
                 run_id = _kwargs.get("run_id")
                 tags = _kwargs.get("tags")
-                model = _kwargs.get("model")
-                r = client.models.push(
+                r = client.push(
                     name,
                     version,
                     to_push_file=to_push_file,
-                    push_type=push_type,
-                    experiment_id=experiment_id,
                     run_id=run_id,
-                    create_version=True,
                     tags=tags,
-                    model=None,
                 )
-                ops_result = r.json()
+                ops_result = r
                 msg = ops_result["details"]
                 if ops_result["status"] == "ok":
                     # print(colorize(msg, "green", False, True))
@@ -520,7 +514,7 @@ def make(
 
             if ops_type == "pull":
                 save_path = _kwargs.get("save_path", os.getcwd())
-                client.models.pull(name, version, save_path=save_path)
+                client.pull(name, version, save_path=save_path)
                 msg = f"model:{name}-V{version} is download at {save_path}"
                 # print(colorize(msg, "green", False, True))
                 logger.info(colorize(msg, "green", True, True))

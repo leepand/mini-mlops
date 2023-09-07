@@ -5,6 +5,7 @@ from mlopskit.core.model import Model  # NOQA
 from mlopskit.api import serving
 
 from mlopskit.pastry.api import make
+from .api import Client
 
 # from .pipe import Pipe
 

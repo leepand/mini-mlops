@@ -25,7 +25,8 @@ try:
     config = YAMLDataSet(default_config).load()
     mlflow_url_local = config.get("mlflow_url_local")
     ignore_ssl_check = config.get("ignore_ssl_check", True)
-    mlflow_art_path = config.get("mlflow_art_path", os.getcwd())
+    # mlflow_art_path = config.get("mlflow_art_path", os.getcwd())
+    mlflow_art_path = os.path.join(home_path, "mlflow_workspace")
     mlflow_client = MLflowRESTClient(
         mlflow_url_local, ignore_ssl_check=ignore_ssl_check
     )
