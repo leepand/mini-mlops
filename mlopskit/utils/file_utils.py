@@ -171,3 +171,16 @@ def make_containing_dirs(path):
     dir_name = os.path.dirname(path)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
+
+
+def get_first_level_directories(folder_path):
+    if not os.path.isdir(folder_path):
+        return []  # 文件夹路径无效，返回空列表
+
+    directories = []
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        if os.path.isdir(item_path):
+            directories.append(item)
+
+    return directories

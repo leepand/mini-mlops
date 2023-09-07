@@ -1,3 +1,4 @@
+from pathlib import Path, PurePosixPath
 import os
 import sys
 import time
@@ -17,16 +18,18 @@ from rich.tree import Tree
 from mlopskit.assets.cli import assets_cli
 import mlopskit.ext.shellkit as sh
 from mlopskit.ext.prompts.prompt import create_template, readfile, PromptTemplate
-from mlopskit.utils.file_utils import data_dir
+from mlopskit.utils.file_utils import data_dir, get_first_level_directories
 from mlopskit.utils.shell_utils import get_port_status, start_service
 from mlopskit.utils.killport import kill9_byport
 from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
+from mlopskit.pipe import ConfigManager, Pipe
 from mlopskit.config import (
     SERVER_PORT_CONFIG,
     DEFAULT_SERVER_CONFIG,
     FRONTEND_PATH,
     SERVER_PATH,
 )
+from mlopskit.pastry.api import make
 
 from structlog import get_logger
 
@@ -367,3 +370,208 @@ def run(service, build, host, port, backend):
                     f"serving ui info: {main_service_msg}!",
                     name="main service serving",
                 )
+
+
+@mlopskit_cli.command("regmodel", no_args_is_help=True)
+@click.option("--name", help="model name", required=True)
+@click.option(
+    "--filesdir",
+    help="model files dir name",
+    is_flag=False,
+    required=True,
+    show_default=True,
+)
+@click.option(
+    "--confirm", help="confirm", is_flag=True, default=True, show_default=True
+)
+def regmodel(name, filesdir, confirm):
+    """
+    Register a trained machine learning model to the model repository/registry for discovery and deployment.
+    """
+    model_name = name
+    try:
+        if confirm:
+            c = input(
+                "Confirm register model {} files to {} (y/n)".format(
+                    model_name, "remote repository"
+                )
+            )
+            if c == "n":
+                return None
+        else:
+            c = "y"
+        if c == "y":
+            if not filesdir:
+                logger.warning(f"you have to specify `filesdir`")
+                return
+
+            make(f"model/{model_name}", to_push_file=filesdir)
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("pull", no_args_is_help=True)
+@click.option("--pipe", help="Pipe name", required=True)
+@click.option(
+    "--profile", help="env name", required=True, default="dev", show_default=True
+)
+@click.option("--version", help="version", is_flag=False, show_default=True)
+@click.option(
+    "--preview", help="Preview", is_flag=True, default=True, show_default=True
+)
+def pull(pipe, version, profile, preview):
+    """
+    Pull model and code from remote repo.
+    """
+    pipe_name = pipe
+    try:
+        pipe = Pipe(pipe_name, profile=profile)
+        if preview:
+            result = pipe.pull(dryrun=True, version=version)
+            logger.info(f"Pull codes:{result}")
+        else:
+            result = pipe.pull(dryrun=False, version=version)
+            logger.info(f"Pull codes:{result}")
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("push", no_args_is_help=True)
+@click.option("--pipe", help="Pipe name", required=True)
+@click.option(
+    "--profile", help="env name", required=True, default="dev", show_default=True
+)
+@click.option("--filename", help="file/dir name to push", required=True)
+@click.option("--version", help="version", is_flag=False, show_default=True)
+@click.option(
+    "--exclude", help="exclude", is_flag=False, default="*.txt", show_default=True
+)
+@click.option(
+    "--toremote", help="to_remote", is_flag=True, default=False, show_default=True
+)
+@click.option(
+    "--preview", help="Preview", is_flag=True, default=True, show_default=True
+)
+def push(pipe, filename, version, exclude, toremote, profile, preview):
+    """
+    Push model and code from local repo to remote repo.
+    """
+    pipe_name = pipe
+    try:
+        pipe = Pipe(pipe_name, profile=profile)
+        if preview:
+            result = pipe.push(
+                dryrun=True,
+                filename=filename,
+                version=version,
+                exclude=exclude,
+                to_remote=toremote,
+            )
+            logger.info(f"Push codes:{result}")
+        else:
+            result = pipe.push(
+                dryrun=False,
+                filename=filename,
+                version=version,
+                exclude=exclude,
+                to_remote=toremote,
+            )
+            logger.info(f"Push codes:{result}")
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("scan_remote", no_args_is_help=True)
+@click.option(
+    "--pipe", help="pipe name", required=True, default="all", show_default=True
+)
+@click.option(
+    "--profile", help="env name", required=True, default="dev", show_default=True
+)
+@click.option("--version", help="verson ex.v1", required=False, show_default=True)
+@click.option(
+    "--filecfg",
+    help="filecfg name",
+    required=False,
+    default="~/mlopskit/cfg.json",
+    show_default=True,
+)
+def scan_remote(pipe, filecfg, version, profile):
+    """
+    Scan remote files of diff model's envs and versions.
+    """
+    try:
+        if profile not in ["dev", "prod", "preprod"]:
+            profile = "default"
+        configmgr = ConfigManager(filecfg=filecfg, profile=profile)
+        config = configmgr.load()
+        cfg_profile = config
+        filerepo = cfg_profile["filerepo"]
+        if pipe == "all":
+            dirpath = Path(filerepo)
+            files = get_first_level_directories(dirpath)
+            logger.info(f"models remote info:{files}")
+            return
+        else:
+            if version:
+                dirpath = Path(os.path.join(filerepo, pipe, version))
+            else:
+                dirpath = Path(os.path.join(filerepo, pipe))
+                files = get_first_level_directories(dirpath)
+                logger.info(f"models remote info:{files}")
+                return
+        _dir = str(dirpath) + os.sep
+        files = [
+            str(PurePosixPath(p.relative_to(_dir)))
+            for p in dirpath.glob("**/*")
+            if not p.is_dir()
+        ]
+
+        logger.info(f"models remote info:{files}")
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("remove", no_args_is_help=True)
+@click.option("--pipe", help="Pipe name", required=True)
+@click.option(
+    "--profile", help="env name", required=True, default="dev", show_default=True
+)
+@click.option("--version", help="version", is_flag=False, show_default=True)
+@click.option(
+    "--confirm", help="confirm", is_flag=True, default=True, show_default=True
+)
+@click.option("--files", help="files", is_flag=False, default="all", show_default=True)
+def remove(pipe, version, confirm, profile, files):
+    """
+    Remove files of remote (version).
+    """
+    pipe_name = pipe
+    try:
+        pipe = Pipe(pipe_name, profile=profile)
+        files = pipe.delete_files_remote(version=version, files=files, confirm=confirm)
+        logger.info(f"delete remote repo files:{files}")
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("killport", no_args_is_help=True)
+@click.option("--port", help="model port", required=True)
+@click.option(
+    "--confirm", help="confirm", is_flag=True, default=True, show_default=True
+)
+def killport(port, confirm):
+    """
+    Kill port process.
+    """
+    try:
+        if confirm:
+            c = input("Confirm port {} to {} (y/n)".format(port, "kill"))
+            if c == "n":
+                return None
+        else:
+            c = "y"
+        if c == "y":
+            kill9_byport(port)
+    except Exception as e:
+        click.echo(e)

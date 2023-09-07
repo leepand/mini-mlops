@@ -11,8 +11,6 @@ from mlopskit.ext.prompts.prompt import create_template
 import mlopskit.ext.shellkit as sh
 from mlopskit.utils.killport import kill9_byport
 
-from jinja2 import Environment, FileSystemLoader
-
 from structlog import get_logger
 
 logger = get_logger(__name__)

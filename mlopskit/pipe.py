@@ -20,7 +20,7 @@ import subprocess
 import traceback
 
 
-from mlopskit.ext.build_context import prebuild_server
+from mlopskit.build_context import prebuild_server
 from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
 
 # **********************************
