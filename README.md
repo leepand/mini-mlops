@@ -21,17 +21,22 @@
 
 ## 快速开始
 
-安装invoke:
+启动服务:
 
 ```
-pip install invoke
-cd open-mlops && make mlops
+mlopskit run -s all --backend true
 ```
 
-然后运行:
+服务运行成功日志:
 
-```
-invoke buildAndServe
+```sh
+2023-09-07 16:58:06 [info     ] mlopskit config file mlops_config.yml! path=/Users/leepand/.mlopskit/mlops_config.yml
+2023-09-07 16:58:06 [debug    ] your script sh run.sh is processed success
+2023-09-07 16:58:06 [info     ] stdout info: your script is processed success! name=mlflow service serving
+2023-09-07 16:58:06 [debug    ] your script nohup sh run_model_server.sh > run_model_server.log 2>&1 & is processed success
+2023-09-07 16:58:06 [info     ] stdout info: your script is processed success! name=model server service serving
+2023-09-07 16:58:06 [debug    ] your script nohup gunicorn --workers=3 -b 0.0.0.0:8080  mlopskit.server.wsgi:app >main_server.log 2>&1 & is processed success
+2023-09-07 16:58:06 [info     ] serving ui info: your script is processed success! name=main service serving
 ```
 模型部署
 
