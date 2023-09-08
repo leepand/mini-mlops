@@ -2,4 +2,4 @@
 """
 from .sql_formatter.core import format_sql
 from .store.yaml.yaml_data import YAMLDataSet
-from .store.sqlite.sqlite_data import SQLiteData, SQLModel
+from .store.sqlite.sqlite_data import SQLiteData, SQLModel, BaseModel
