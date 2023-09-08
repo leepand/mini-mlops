@@ -34,7 +34,7 @@
 
 ## 🤱 快速开始
 
-启动服务:
+### 启动服务:
 
 ```bash
 mlopskit run -s all --backend true
@@ -52,7 +52,7 @@ mlopskit run -s all --backend true
 2023-09-07 16:58:06 [info     ] serving ui info: your script is processed success! name=main service serving
 ```
 
-创建新项目（模型）:
+### 创建新项目（模型）:
 
 项目名称-mlops_new_proj，模型名称-new_model，模型版本-2:
 
@@ -62,7 +62,7 @@ mlopskit init -p mlops_new_proj -m new_model -v 2
 # 2023-09-07 16:43:28 [info     ] Project mlops_new_proj is created! name=mlops_new_proj
 ```
 
-模型注册：
+### 模型注册：
 
 ```
 mlopskit regmodel --name new_model --filesdir mlops_new_proj
@@ -81,7 +81,7 @@ Confirm register model new_model files to remote repository (y/n)y
 2023-09-07 17:23:27 [info     ] model version 5 is created!
 ```
 
-模型开发
+### 模型开发
 
 `mlopskit`使用mlflow进行模型实验的跟踪、模型注册等功能，并提供了一种直接且一致的方式来将预测代码封装在一个Model类中：
 
@@ -137,7 +137,7 @@ library = ModelLibrary(models=[RecomServer])
 model = library.get("recomserver")
 ```
 
-模型部署
+### 模型部署
 
 - `--pipe`: 模型名称
 - `--filename`: 模型版本所在目录
@@ -162,6 +162,33 @@ pushing: 0.04MB
 2023-09-07 18:13:54 [info     ] Push codes:['logs/README.md', 'notebooks/open_debug_db.py', 'src/utils.py', 'notebooks/serving.py', 'README.md', 'notebooks/.ipynb_checkpoints/servinfgipynb-checkpoint', 'notebooks/.ipynb_checkpoints/serving-checkpoint.py', 'src/rewardserver.py', 'notebooks/config.py', 'config/server_prod.yml', 'config/server_dev.yml', 'notebooks/servinfgipynb', 'src/recomserver.py']
 ```
 
+### 模型服务化
+
+```python
+from mlopskit.pipe import ServiceMgr
+from mlopskit import Client
+
+test = ServiceMgr(["new_model"], env="dev")
+test.start_service()
+test.scan_logs(100000)
+```
+
+服务化开启日志：
+
+```bash
+2023-09-07 17:40:08 [info     ] Usage of mlopskit-client       Params={'host': 'set/get, default:get', 'config': 'config file, default:None'} Return=HTTPClient
+2023-09-07 17:40:08 [info     ] APIs of mlopskit               model_name=model model_version=None ops_type=config
+2023-09-07 17:40:08 [info     ] Usage of mlopskit-config       Params={'config_ops': 'set/get, default:get', 'get': {'config_path': 'default:None', 'set': {'config_content': 'config cintent,Dict', 'config_path': 'default:None'}}}
+Successfully connected to pipe new_model. 
+2023-09-07 17:40:08 [debug    ] Generating Model Serverfile via templates from ServerFile.j2 ...
+2023-09-07 17:40:08 [debug    ] Generating run cmd script ...
+2023-09-07 17:40:08 [debug    ] your script cd /Users/leepand/mlopskit/files/dev/new_model/v2/src && sh /Users/leepand/mlopskit/files/dev/new_model/v2/src/run_recomserver_4001.sh is processed success
+2023-09-07 17:40:09 [info     ] model: new_model, server:recomserver port: 4001 is running
+2023-09-07 17:40:09 [debug    ] Generating Model Serverfile via templates from ServerFile.j2 ...
+2023-09-07 17:40:09 [debug    ] Generating run cmd script ...
+2023-09-07 17:40:09 [debug    ] your script cd /Users/leepand/mlopskit/files/dev/new_model/v2/src && sh /Users/leepand/mlopskit/files/dev/new_model/v2/src/run_rewardserver_5001.sh is processed success
+2023-09-07 17:40:11 [info     ] model: new_model, server:rewardserver port: 5001 is running
+```
 
 ## 技术架构
 
