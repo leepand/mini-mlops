@@ -168,7 +168,7 @@ pushing: 0.04MB
 from mlopskit.pipe import ServiceMgr
 from mlopskit import Client
 
-test = ServiceMgr(["new_model"], env="dev")
+test = ServiceMgr(["new_model"], env="dev") # 如果生产环境，则env="prod"
 test.start_service()
 test.scan_logs(100000)
 ```
@@ -193,28 +193,6 @@ Successfully connected to pipe new_model.
 ## 技术架构
 
 <img src="resources/art.png">
-
-## Documentation
-使用范例可在[docs](docs)文件夹中找到。
-
-- [客户端使用](docs/mlops-client.md)
-    - [客户端配置](docs/mlops-client.md#settings)
-- [模型实验跟踪](docs/mlops-tracking.md)
-    - [Experiment](docs/mlops-tracking.md#experiment)
-    - [Run](docs/mlops-tracking.md#run)
-    - [Run Metrics](docs/mlops-tracking.md#run-metrics)
-    - [Model](docs/mlops-tracking.md#model)
-    - [Model version](docs/mlops-tracking.md#model-version)
-- [模型部署](docs/mlops-deploy.md)
-    - [Push Model](docs/mlops-deploy.md#push-model)
-    - [Pull Model](docs/mlops-deploy.md#pull-model)
-- [模型服务化](docs/mlops-serving.md)
-    - [Serving Model](docs/mlops-serving.md#serving-model)
-    - [Serving Model Status](docs/mlops-serving.md#serving-model-status)
-- [数据存储](docs/mlops-data-store.md)
-    - [日志存储](docs/mlops-data-store.md#events-record)
-    - [模型存储](docs/mlops-data-store.md#model-store)
-    - [特征存储](docs/mlops-data-store.md#feature-store)
 
 ## 🌳 updated 2.0.1
 
