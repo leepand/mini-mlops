@@ -36,13 +36,13 @@
 
 启动服务:
 
-```
+```bash
 mlopskit run -s all --backend true
 ```
 
 服务运行成功日志:
 
-```sh
+```bash
 2023-09-07 16:58:06 [info     ] mlopskit config file mlops_config.yml! path=/Users/leepand/.mlopskit/mlops_config.yml
 2023-09-07 16:58:06 [debug    ] your script sh run.sh is processed success
 2023-09-07 16:58:06 [info     ] stdout info: your script is processed success! name=mlflow service serving
@@ -56,7 +56,7 @@ mlopskit run -s all --backend true
 
 项目名称-mlops_new_proj，模型名称-new_model，模型版本-2:
 
-```
+```bash
 mlopskit init -p mlops_new_proj -m new_model -v 2
 # 创建成功日志：
 # 2023-09-07 16:43:28 [info     ] Project mlops_new_proj is created! name=mlops_new_proj
@@ -81,52 +81,87 @@ Confirm register model new_model files to remote repository (y/n)y
 2023-09-07 17:23:27 [info     ] model version 5 is created!
 ```
 
-模型部署
+模型开发
 
 `mlopskit`使用mlflow进行模型实验的跟踪、模型注册等功能，并提供了一种直接且一致的方式来将预测代码封装在一个Model类中：
 
-```
-from mlopskit import Model,serving
+```python
+from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
+from mlopskit import Model, ModelLibrary, make
+from mlopskit.log_base import create_log_path
+
+import traceback
 import numpy as np
-from sklearn.datasets import load_diabetes
-from sklearn.linear_model import LinearRegression
+import os
+import json
 
-X, y = load_diabetes(return_X_y=True)
+from utils import debug_log
 
-lr = LinearRegression()
-lr.fit(X, y)
+class RecomServer(Model):
+    CONFIGURATIONS = {"recomserver": {}}
 
+    def _load(self):
+        # 创建日志路径
+        self.reocm_logs_path = create_log_path("{{model_name}}", "recom_errors")
+        self.recom_logs_debug = create_log_path("{{model_name}}", "recom_debugs")
+        self.debug_db = make("cache/feature_store-v1", db_name="debug_tests.db")
 
-class LrModel(Model):
-    CONFIGURATIONS = {"lrmodel":{}}
-    def _predict(self,items):
+        self.model_db = make(
+            "cache/{{model_name}}-v{{version}}", db_name="{{model_name}}.db"
+        )
+
+    def _predict(self, items):
+        uid = items.get("uid")
         request_id = items.get("request_id")
-        xx= np.array(items.get("x")).reshape(1,-1)
-        return {"result":lr.predict(xx).tolist()[0]}
-    
+        try:
+            debug_log(
+                items=items,
+                model_name="{{model_name}}",
+                debug_db=self.debug_db,
+                logs_debug=self.recom_logs_debug,
+                request_id=request_id,
+            )
 
-serving([LrModel],["lrmodel"],{"port":9000})
+            return items
+        except:
+            # 将异常堆栈信息写入错误日志文件
+            log_file = os.path.join(self.recom_logs_path, f"{request_id}_error.txt")
+            with open(log_file, "w") as f:
+                f.write(str(traceback.format_exc()))
 
-## 接口测试
-%%time
-import sys
-
-import requests
-
-
-def main():
-
-    payload = {"x":X[0].tolist()}
-    r = requests.post('http://localhost:9000/predict/lrmodel', json=payload)
-    r.raise_for_status()
-    print(r.json())
+            return items
 
 
+library = ModelLibrary(models=[RecomServer])
 
-
-if __name__ == '__main__':
-    main()
+model = library.get("recomserver")
 ```
+
+模型部署
+
+- `--pipe`: 模型名称
+- `--filename`: 模型版本所在目录
+- `--toremote`: 代码文件上传至模型空间
+- `--profile`: 指定环境，`dev`为开发环境，`preprod`为预上线环境，`prod`为生产环境
+
+```bash
+mlopskit push --pipe new_model --filename mlops_new_proj --toremote --preview --profile prod
+
+2023-09-07 18:13:54 [info     ] Usage of mlopskit-client       Params={'host': 'set/get, default:get', 'config': 'config file, default:None'} Return=HTTPClient
+2023-09-07 18:13:54 [info     ] APIs of mlopskit               model_name=model model_version=None ops_type=config
+2023-09-07 18:13:54 [info     ] Usage of mlopskit-config       Params={'config_ops': 'set/get, default:get', 'get': {'config_path': 'default:None', 'set': {'config_content': 'config cintent,Dict', 'config_path': 'default:None'}}}
+Successfully connected to pipe new_model. 
+pushing: 0.04MB
+2023-09-07 18:13:54 [info     ] APIs of mlopskit               model_name=new_model model_version=5 ops_type=model
+2023-09-07 18:13:54 [info     ] The list of all versions for the current model is [1, 2, 3, 4, 5].
+2023-09-07 18:13:54 [info     ] Usage of mlopskit-model        Params={'ops_type': 'push/pull/serving/predict/killservice/serving_status, default:push'}
+2023-09-07 18:13:54 [info     ] Usage of mlopskit-push         Params={'to_push_file': 'model file/dir to upload to remote model space', 'push_type': 'file/pickle, default: file'}
+2023-09-07 18:13:54 [info     ] Usage of mlopskit-pull         Params={'save_path': 'local path to download model'}
+2023-09-07 18:13:54 [info     ] model version 5 is updated!
+100%|██████████████████████████████████████████████████████████████████████████████████████████| 13/13 [00:00<00:00, 4458.01it/s]
+2023-09-07 18:13:54 [info     ] Push codes:['logs/README.md', 'notebooks/open_debug_db.py', 'src/utils.py', 'notebooks/serving.py', 'README.md', 'notebooks/.ipynb_checkpoints/servinfgipynb-checkpoint', 'notebooks/.ipynb_checkpoints/serving-checkpoint.py', 'src/rewardserver.py', 'notebooks/config.py', 'config/server_prod.yml', 'config/server_dev.yml', 'notebooks/servinfgipynb', 'src/recomserver.py']
+```
+
 
 ## 技术架构
 
