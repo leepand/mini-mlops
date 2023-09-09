@@ -352,19 +352,21 @@ def run(service, build, host, port, backend):
                 logger.warning(f"port {port} is killed!", name="model server service")
 
         if backend == "true":
+            _server_host = "0.0.0.0"
             with sh.cd(mlflow_workspace):
                 main_service_msg = start_service(
-                    script=f"nohup gunicorn --workers=3 -b {host}:{port}  mlopskit.server.wsgi:app >main_server.log 2>&1 &"
+                    script=f"nohup gunicorn --workers=3 -b {_server_host}:{port}  mlopskit.server.wsgi:app >main_server.log 2>&1 &"
                 )
                 logger.info(
                     f"serving ui info: {main_service_msg}!",
                     name="main service serving",
                 )
         else:
+            _server_host = "0.0.0.0"
             path = os.path.realpath(os.path.dirname(__file__))
             with sh.cd(path):
                 main_service_msg = start_service(
-                    script=f"gunicorn --workers=3 -b {host}:{port}  server.wsgi:app >>web-predict.log;"
+                    script=f"gunicorn --workers=3 -b {_server_host}:{port}  server.wsgi:app >>web-predict.log;"
                 )
                 logger.info(
                     f"serving ui info: {main_service_msg}!",
