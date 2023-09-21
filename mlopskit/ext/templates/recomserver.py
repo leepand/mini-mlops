@@ -15,7 +15,7 @@ class RecomServer(Model):
 
     def _load(self):
         # 创建日志路径
-        self.reocm_logs_path = create_log_path("{{model_name}}", "recom_errors")
+        self.recom_logs_path = create_log_path("{{model_name}}", "recom_errors")
         self.recom_logs_debug = create_log_path("{{model_name}}", "recom_debugs")
         self.debug_db = make("cache/feature_store-v1", db_name="debug_tests.db")
 

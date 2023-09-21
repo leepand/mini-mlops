@@ -5,7 +5,7 @@ import re
 import os
 from dataclasses import dataclass, field
 from .client import HTTPClient
-from .util import create_structure
+from mlopskit.pastry.utils import create_structure
 
 # from mlopskit.utils import logger
 from .colorize import colorize

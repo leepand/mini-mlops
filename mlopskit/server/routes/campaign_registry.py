@@ -11,13 +11,7 @@ from pyjackson import deserialize, serialize
 from .response import Response
 from structlog import get_logger
 
-
-from abkit.models import Experiment
-import abkit.db as db
 from ..utils.misc import (
-    experiment_list,
-    archived,
-    paused,
     find_or_404,
     simple_markdown,
     determine_period,
@@ -143,7 +137,6 @@ def registered_abexps():
 @auth.login_required
 def del_campaign_exps():
     ab_id = request.get_json()["ab_id"]
-    campaign_id = request.get_json()["campaign_id"]
     user_name = request.get_json()["user_name"]
     ids = [ab_id]
     try:

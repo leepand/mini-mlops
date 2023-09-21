@@ -1,8 +1,8 @@
 import os
 import time
 
-from abkit.models import Experiment
-import abkit.db as db
+from mlopskit.ext.abtest.models import Experiment
+import mlopskit.ext.abtest.db as db
 
 from markdown import markdown
 import requests

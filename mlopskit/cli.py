@@ -2,6 +2,7 @@ from pathlib import Path, PurePosixPath
 import os
 import sys
 import time
+from datetime import datetime
 
 import click
 import git
@@ -30,6 +31,19 @@ from mlopskit.config import (
     SERVER_PATH,
 )
 from mlopskit.pastry.api import make
+
+from .ext.gitkit.create import (
+    repo_create,
+    repo_find,
+    tree_from_index,
+    commit_create,
+    object_find,
+)
+from .ext.gitkit.add import add as repo_add
+from .ext.gitkit.index import index_read
+from .ext.gitkit.config import gitconfig_user_get, gitconfig_read
+from .ext.gitkit.branch import branch_get_active
+from .ext.gitkit.file import repo_file
 
 from structlog import get_logger
 
@@ -77,7 +91,8 @@ def init(project, model, version):
     base_path = os.getcwd()
     project_path = os.path.join(base_path, project)
     # make_containing_dirs(project_path)
-    sh.mkdir(project_path)
+    # sh.mkdir(project_path)
+    repo_create(project_path)
     sh.mkdir(f"{project_path}/src")
     sh.mkdir(f"{project_path}/config")
     sh.mkdir(f"{project_path}/notebooks")
@@ -575,5 +590,58 @@ def killport(port, confirm):
             c = "y"
         if c == "y":
             kill9_byport(port)
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("add", no_args_is_help=True)
+@click.option("--path", help="model path", default=".", required=False)
+def add(path):
+    """
+    Add files contents to the index.
+    """
+    try:
+        repo = repo_find()
+        # paths = list(sh.walkfiles())
+        if os.path.isdir(path):
+            paths = list(sh.walk(path))
+        else:
+            paths = [path]
+        repo_add(repo, paths)
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("commit", no_args_is_help=True)
+@click.option("--msg", "-m", help="commit message", default="update", required=True)
+def cmd_commit(msg):
+    """
+    Message to associate with this commit.
+    """
+    try:
+        repo = repo_find()
+        index = index_read(repo)
+        # Create trees, grab back SHA for the root tree.
+        tree = tree_from_index(repo, index)
+        # Create the commit object itself
+        commit = commit_create(
+            repo,
+            tree,
+            object_find(repo, "HEAD"),
+            gitconfig_user_get(gitconfig_read()),
+            datetime.now(),
+            msg,
+        )
+
+        # Update HEAD so our commit is now the tip of the active branch.
+        active_branch = branch_get_active(repo)
+        if active_branch:  # If we're on a branch, we update refs/heads/BRANCH
+            with open(
+                repo_file(repo, os.path.join("refs/heads", active_branch)), "w"
+            ) as fd:
+                fd.write(commit + "\n")
+        else:  # Otherwise, we update HEAD itself.
+            with open(repo_file(repo, "HEAD"), "w") as fd:
+                fd.write("\n")
     except Exception as e:
         click.echo(e)

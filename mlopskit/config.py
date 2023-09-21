@@ -56,6 +56,9 @@ class ServerOptions(BaseModel):
 
 DEFAULT_SERVER_CONFIG = {
     "ignore_ssl_check": True,
+    "redis_host": "localhost",
+    "redis_port": "6379",
+    "redis_ab_db": "15",
     "mlflow_art_path": "/home/ec2-user/models_deploy/campaign-ds/bole_ds_platform/mlworkspace",
     "mlflow_art_path_description": "mlflow服务端工件的存放位置",
     "mlflow_url": "http://1.31.24.138:8904",
