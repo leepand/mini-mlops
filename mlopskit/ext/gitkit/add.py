@@ -8,7 +8,7 @@ from .index import index_read, GitIndexEntry, index_write
 def add(repo, paths, delete=True, skip_missing=False):
 
     # First remove all paths from the index, if they exist.
-    rm(repo, paths, delete=False, skip_missing=True)
+    rm(repo, paths, delete=delete, skip_missing=True)
 
     worktree = repo.worktree + os.sep
 

@@ -596,7 +596,7 @@ def killport(port, confirm):
 
 @mlopskit_cli.command("add", no_args_is_help=True)
 @click.option("--path", help="model path", default=".", required=False)
-def add(path):
+def cmd_add(path):
     """
     Add files contents to the index.
     """
@@ -635,6 +635,8 @@ def cmd_commit(msg):
 
         # Update HEAD so our commit is now the tip of the active branch.
         active_branch = branch_get_active(repo)
+        print(f"[{active_branch}] {msg}")
+        print(f"Committer: {commit}")
         if active_branch:  # If we're on a branch, we update refs/heads/BRANCH
             with open(
                 repo_file(repo, os.path.join("refs/heads", active_branch)), "w"
