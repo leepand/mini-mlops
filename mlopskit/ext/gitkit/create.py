@@ -555,3 +555,22 @@ def tag_create(repo, name, ref, create_tag_object=False):
     else:
         # create lightweight tag (ref)
         ref_create(repo, "tags/" + name, sha)
+
+
+def object_hash(fd, fmt, repo=None):
+    """Hash object, writing it to repo if provided."""
+    data = fd.read()
+
+    # Choose constructor according to fmt argument
+    if fmt == b"commit":
+        obj = GitCommit(repo=repo, data=data)
+    elif fmt == b"tree":
+        obj = GitTree(repo=repo, data=data)
+    elif fmt == b"tag":
+        obj = GitTag(repo=repo, data=data)
+    elif fmt == b"blob":
+        obj = GitBlob(repo=repo, data=data)
+    else:
+        raise Exception("Unknown type %s!" % fmt)
+
+    return object_write(obj, repo)

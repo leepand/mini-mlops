@@ -44,6 +44,7 @@ from .ext.gitkit.index import index_read
 from .ext.gitkit.config import gitconfig_user_get, gitconfig_read
 from .ext.gitkit.branch import branch_get_active
 from .ext.gitkit.file import repo_file
+from .ext.gitkit.gitRepository import cmd_status_head_index
 
 from structlog import get_logger
 
@@ -604,10 +605,11 @@ def cmd_add(path):
         repo = repo_find()
         # paths = list(sh.walkfiles())
         if os.path.isdir(path):
-            paths = list(sh.walk(path))
+            paths_all = list(sh.walk(path, exclude=".git"))
+            files = [file for file in paths_all if os.path.isfile(file)]
         else:
-            paths = [path]
-        repo_add(repo, paths)
+            files = [path]
+        repo_add(repo, files)
     except Exception as e:
         click.echo(e)
 
@@ -637,6 +639,7 @@ def cmd_commit(msg):
         active_branch = branch_get_active(repo)
         print(f"[{active_branch}] {msg}")
         print(f"Committer: {commit}")
+        cmd_status_head_index(repo=repo, index=index)
         if active_branch:  # If we're on a branch, we update refs/heads/BRANCH
             with open(
                 repo_file(repo, os.path.join("refs/heads", active_branch)), "w"
