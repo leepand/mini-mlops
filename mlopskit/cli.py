@@ -38,13 +38,21 @@ from .ext.gitkit.create import (
     tree_from_index,
     commit_create,
     object_find,
+    object_hash,
+    tag_create,
 )
 from .ext.gitkit.add import add as repo_add
 from .ext.gitkit.index import index_read
 from .ext.gitkit.config import gitconfig_user_get, gitconfig_read
 from .ext.gitkit.branch import branch_get_active
 from .ext.gitkit.file import repo_file
-from .ext.gitkit.gitRepository import cmd_status_head_index
+from .ext.gitkit.gitRepository import (
+    cmd_status_head_index,
+    cat_file,
+    cmd_status,
+    cmd_checkout,
+)
+from .ext.gitkit.ref import ref_list, show_ref
 
 from structlog import get_logger
 
@@ -639,7 +647,7 @@ def cmd_commit(msg):
         active_branch = branch_get_active(repo)
         print(f"[{active_branch}] {msg}")
         print(f"Committer: {commit}")
-        cmd_status_head_index(repo=repo, index=index)
+        # cmd_status_head_index(repo=repo, index=index)
         if active_branch:  # If we're on a branch, we update refs/heads/BRANCH
             with open(
                 repo_file(repo, os.path.join("refs/heads", active_branch)), "w"
@@ -648,5 +656,160 @@ def cmd_commit(msg):
         else:  # Otherwise, we update HEAD itself.
             with open(repo_file(repo, "HEAD"), "w") as fd:
                 fd.write("\n")
+        cmd_status_head_index(repo=repo, index=index)
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("hash-object", no_args_is_help=True)
+@click.option(
+    "--write",
+    "-w",
+    help="Actually write the object into the database",
+    is_flag=True,
+    default=False,
+    required=True,
+)
+@click.option(
+    "--type",
+    "-t",
+    help="Specify the type: ['blob', 'commit', 'tag', 'tree']",
+    required=True,
+    default="blob",
+    show_default=True,
+)
+@click.option(
+    "--path", "-p", help="Read object from <file>", default=".", show_default=True
+)
+def hash_object(write, path, type):
+    """
+    Hash object, writing it to repo if provided.
+    """
+    try:
+        if write:
+            repo = repo_find()
+        else:
+            repo = None
+
+        with open(path, "rb") as fd:
+            sha = object_hash(fd, type.encode(), repo)
+            print(sha)
+        logger.info(f"hash-object of file {path}:{sha}")
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("cat-file", no_args_is_help=True)
+@click.option(
+    "--object",
+    "-o",
+    help="The object to display",
+    required=True,
+)
+@click.option(
+    "--type",
+    "-t",
+    help="Specify the type: ['blob', 'commit', 'tag', 'tree']",
+    required=True,
+    default="blob",
+    show_default=True,
+)
+def cmd_cat_file(object, type):
+    """
+    Provide content of repository objects.
+    """
+    try:
+        repo = repo_find()
+        cat_file(repo, object, fmt=type.encode())
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("tag", no_args_is_help=True)
+@click.option(
+    "createtag",
+    "-a",
+    help="Whether to create a tag object",
+    required=True,
+    default="tag",
+    show_default=True,
+)
+@click.option(
+    "--name",
+    help="The new tag's name",
+    required=False,
+)
+@click.option(
+    "--object",
+    "-o",
+    help="The object the new tag will point to",
+    required=True,
+    default="HEAD",
+    show_default=True,
+)
+def cmd_tag(name, object, createtag):
+    """
+    List and create tags.
+    """
+    try:
+        repo = repo_find()
+
+        if name:
+            tag_create(
+                repo,
+                name,
+                object,
+                create_tag_object=True if createtag == "tag" else False,
+            )
+        else:
+            refs = ref_list(repo)
+            show_ref(repo, refs["tags"], with_hash=False)
+
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("status", no_args_is_help=True)
+@click.option(
+    "--show",
+    "-s",
+    help="show status",
+    is_flag=True,
+    default=True,
+    show_default=True,
+)
+def _cmd_status(show):
+    """
+    Show the working tree status.
+    """
+    try:
+        cmd_status("_")
+
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("checkout", no_args_is_help=True)
+@click.option(
+    "--commit",
+    "-c",
+    help="The commit or tree to checkout.",
+    default="HEAD",
+    show_default=True,
+)
+@click.option(
+    "--path",
+    "-p",
+    help="The EMPTY directory to checkout on.",
+    default=".",
+    show_default=True,
+)
+def _cmd_checkout(commit, path):
+    """
+    Checkout a commit inside of a directory.
+    """
+    try:
+        cmd_checkout(commit=commit, path=path)
+
     except Exception as e:
         click.echo(e)

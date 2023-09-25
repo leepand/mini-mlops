@@ -172,25 +172,25 @@ def cmd_add(args):
     add(repo, args.path)
 
 
-def cmd_checkout(args):
+def cmd_checkout(commit, path):
     repo = repo_find()
 
-    obj = object_read(repo, object_find(repo, args.commit))
+    obj = object_read(repo, object_find(repo, commit))
 
     # If the object is a commit, we grab its tree
     if obj.fmt == b"commit":
         obj = object_read(repo, obj.kvlm[b"tree"].decode("ascii"))
 
     # Verify that path is an empty directory
-    if os.path.exists(args.path):
-        if not os.path.isdir(args.path):
-            raise Exception("Not a directory {0}!".format(args.path))
-        if os.listdir(args.path):
-            raise Exception("Not empty {0}!".format(args.path))
+    if os.path.exists(path):
+        if not os.path.isdir(path):
+            raise Exception("Not a directory {0}!".format(path))
+        if os.listdir(path):
+            raise Exception("Not empty {0}!".format(path))
     else:
-        os.makedirs(args.path)
+        os.makedirs(path)
 
-    tree_checkout(repo, obj, os.path.realpath(args.path))
+    tree_checkout(repo, obj, os.path.realpath(path))
 
 
 def cmd_cat_file(args):
@@ -257,6 +257,8 @@ def ls_tree(repo, ref, recursive=None, prefix=""):
             raise Exception("Weird tree leaf mode {}".format(item.mode))
 
         if not (recursive and type == "tree"):  # This is a leaf
+            if isinstance(item.path, bytes):
+                item.path = item.path.decode()
             print(
                 "{0} {1} {2}\t{3}".format(
                     "0" * (6 - len(item.mode)) + item.mode.decode("ascii"),
@@ -268,7 +270,19 @@ def ls_tree(repo, ref, recursive=None, prefix=""):
                 )
             )
         else:  # This is a branch, recurse
-            ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
+            if isinstance(item.path, bytes):
+                item.path = item.path.decode()
+            print(
+                "{0} {1} {2}\t{3}".format(
+                    "0" * (6 - len(item.mode)) + item.mode.decode("ascii"),
+                    # Git's ls-tree displays the type
+                    # of the object pointed to.  We can do that too :)
+                    type,
+                    item.sha,
+                    os.path.join(prefix, item.path),
+                )
+            )
+            # ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 
 
 def cmd_rm(args):
@@ -499,7 +513,10 @@ def cmd_status_branch(repo):
 
 def tree_to_dict(repo, ref, prefix=""):
     ret = dict()
-    tree_sha = object_find(repo, ref, fmt=b"tree")
+    try:
+        tree_sha = object_find(repo, ref, fmt=b"tree")
+    except:
+        tree_sha = ref
     tree = object_read(repo, tree_sha)
 
     for leaf in tree.items:
@@ -512,12 +529,15 @@ def tree_to_dict(repo, ref, prefix=""):
         # expensive: we could just open it as a file and read the
         # first few bytes)
         is_subtree = leaf.mode.startswith(b"04")
-        is_subtree = False
+        # is_subtree = False
         # Depending on the type, we either store the path (if it's a
         # blob, so a regular file), or recurse (if it's another tree,
         # so a subdir)
         if is_subtree:
-            ret.update(tree_to_dict(repo, leaf.sha, full_path))
+            try:
+                ret.update(tree_to_dict(repo, leaf.sha, full_path))
+            except:
+                continue
         else:
             ret[full_path] = leaf.sha
 
@@ -528,13 +548,18 @@ def cmd_status_head_index(repo, index):
     print("Changes to be committed:")
 
     head = tree_to_dict(repo, "HEAD")
+    seen_sha = set()  # 用于存储已经出现过的 entry.sha 值
     for entry in index.entries:
-        if entry.name in head:
-            if head[entry.name] != entry.sha:
-                print("  modified:", entry.name)
-            del head[entry.name]  # Delete the key
+        if entry.sha in seen_sha:
+            continue  # 跳过已经出现过的 entry.sha
         else:
-            print("  added:   ", entry.name)
+            seen_sha.add(entry.sha)  # 将新的 entry.sha 添加到集合中
+            if entry.name in head:
+                if head[entry.name] != entry.sha:
+                    print("  modified:", entry.name)
+                del head[entry.name]  # Delete the key
+            else:
+                print("  added:   ", entry.name)
 
     # Keys still in HEAD are files that we haven't met in the index,
     # and thus have been deleted.
@@ -563,7 +588,13 @@ def cmd_status_index_worktree(repo, index):
     # We now traverse the index, and compare real files with the cached
     # versions.
 
+    seen_sha = set()  # 用于存储已经出现过的 entry.sha 值
+
     for entry in index.entries:
+        if entry.sha in seen_sha:
+            continue  # 跳过已经出现过的 entry.sha
+        else:
+            seen_sha.add(entry.sha)  # 将新的 entry.sha 添加到集合中
         full_path = os.path.join(repo.worktree, entry.name)
 
         # That file *name* is in the index
@@ -596,7 +627,7 @@ def cmd_status_index_worktree(repo, index):
     for f in all_files:
         # @TODO If a full directory is untracked, we should display
         # its name without its contents.
-        if  not check_ignore(ignore, f):
+        if not check_ignore(ignore, f):
             print(" ", f)
 
 

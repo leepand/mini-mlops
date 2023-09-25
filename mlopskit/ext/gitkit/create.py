@@ -54,11 +54,14 @@ def repo_create(path):
 
     repo = GitRepository(path, True)
 
+    # First, we make sure the path either doesn't exist or is an
+    # empty dir.
+
     if os.path.exists(repo.worktree):
         if not os.path.isdir(repo.worktree):
-            raise Exception("{} is not a directory!".format(path))
-        if os.listdir(repo.worktree):
-            raise Exception("{} is not empty!".format(path))
+            raise Exception("%s is not a directory!" % path)
+        if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
+            raise Exception("%s is not empty!" % path)
     else:
         os.makedirs(repo.worktree)
 
@@ -263,8 +266,11 @@ class GitTree(GitObject):
 def tree_checkout(repo, tree, path):
     for item in tree.items:
         obj = object_read(repo, item.sha)
+        if isinstance(item.path, bytes):
+            item.path = item.path.decode()
         dest = os.path.join(path, item.path)
-
+        if obj is None:
+            return
         if obj.fmt == b"tree":
             os.mkdir(dest)
             tree_checkout(repo, obj, dest)
@@ -376,7 +382,8 @@ def object_read(repo, sha):
     GitObject whose exact type depends on the object."""
 
     path = repo_file(repo, "objects", sha[0:2], sha[2:])
-
+    if path is None:
+        return None
     if not os.path.isfile(path):
         return None
 
@@ -415,14 +422,13 @@ def object_resolve(repo, name):
     """Resolve name to an object hash in repo.
     This function is aware of:
 
-    - the HEAD literal
+     - the HEAD literal
     - short and long hashes
     - tags
     - branches
     - remote branches"""
     candidates = list()
-    hashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
-    smallHashRE = re.compile(r"^[0-9A-Fa-f]{1,16}$")
+    hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
 
     # Empty string?  Abort.
     if not name.strip():
@@ -432,22 +438,30 @@ def object_resolve(repo, name):
     if name == "HEAD":
         return [ref_resolve(repo, "HEAD")]
 
+    # If it's a hex string, try for a hash.
     if hashRE.match(name):
-        if len(name) == 40:
-            # This is a complete hash
-            return [name.lower()]
-        elif len(name) >= 4:
-            # This is a small hash 4 seems to be the minimal length
-            # for git to consider something a short hash.
-            # This limit is documented in man git-rev-parse
-            name = name.lower()
-            prefix = name[0:2]
-            path = repo_dir(repo, "objects", prefix, mkdir=False)
-            if path:
-                rem = name[2:]
-                for f in os.listdir(path):
-                    if f.startswith(rem):
-                        candidates.append(prefix + f)
+        # This may be a hash, either small or full.  4 seems to be the
+        # minimal length for git to consider something a short hash.
+        # This limit is documented in man git-rev-parse
+        name = name.lower()
+        prefix = name[0:2]
+        path = repo_dir(repo, "objects", prefix, mkdir=False)
+        if path:
+            rem = name[2:]
+            for f in os.listdir(path):
+                if f.startswith(rem):
+                    # Notice a string startswith() itself, so this
+                    # works for full hashes.
+                    candidates.append(prefix + f)
+
+    # Try for references.
+    as_tag = ref_resolve(repo, "refs/tags/" + name)
+    if as_tag:  # Did we find a tag?
+        candidates.append(as_tag)
+
+    as_branch = ref_resolve(repo, "refs/heads/" + name)
+    if as_branch:  # Did we find a branch?
+        candidates.append(as_branch)
 
     return candidates
 
