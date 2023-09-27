@@ -210,15 +210,6 @@ async def pull_file(name: str, version: str):
     return FileResponse(path=file_to_pull, filename=file_to_pull)
 
 
-@api.get("/models/clone")
-async def clone_file(name: str, version: str):
-
-    source = mlflow_client.get_model_version_download_url(name, version)
-    mlflow_remote_base_path = mlflow_art_path
-    file_to_pull = os.path.join(mlflow_remote_base_path, source)
-    return FileResponse(path=file_to_pull, filename=file_to_pull)
-
-
 @api.get("/api/git-bus/models/pipes")
 async def pipes(name: str, version: str, profile: str):
     pipe_api_instance = pipe_api.APIClient(profile=profile)
@@ -263,10 +254,13 @@ async def listdir_attr(file_or_dir: str, name: str, version: str, profile: str):
                 dir_to_list = os.path.join(base_dir, name, version)
 
         for file in sh.walkfiles(dir_to_list):
+            human_size = human_readable_file_size(file.stat().st_size)
             entries.append(
                 {
-                    "filename": file.name,
-                    "size": human_readable_file_size(file.stat().st_size),
+                    "human_size": human_size,
+                    "filename2": file.name,
+                    "filename": get_relative_path(str(file), base_dir),
+                    "size": file.stat().st_size,
                     "rel_path": get_relative_path(str(file), base_dir),
                     "modified_at": ctime(file.stat().st_mtime),
                     "crc": "{}-{}".format(
@@ -276,5 +270,24 @@ async def listdir_attr(file_or_dir: str, name: str, version: str, profile: str):
             )
 
         return {"filesall": entries, "status": "ok"}
+    except:
+        return {"status": "failed", "details": str(traceback.format_exc())}
+
+
+@api.get("/api/git-bus/models/clone")
+async def clone_file(name: str, version: str, filename: str, profile: str):
+    try:
+        pipe_api_instance = pipe_api.APIClient(profile=profile)
+        base_dir = pipe_api_instance.dir
+        if name == "all":
+            base_file_path = os.path.join(base_dir)
+        else:
+            if version is None:
+                base_file_path = os.path.join(base_dir, name)
+            else:
+                base_file_path = os.path.join(base_dir, name, version)
+        file = os.path.join(base_dir, filename)
+        # return {"status":"ok","files":FileResponse(path=file, filename=file)}
+        return FileResponse(path=file, filename=file)
     except:
         return {"status": "failed", "details": str(traceback.format_exc())}

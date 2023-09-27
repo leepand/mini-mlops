@@ -90,3 +90,16 @@ class GitBus(SDK):
             },
         )
         return resp
+
+    def clone(self, name: str, version: str, filename: str, profile: str):
+        resp = self.get(
+            f"/api/git-bus/{self.name}/clone",
+            params={
+                "name": name,
+                "version": version,
+                "profile": profile,
+                "filename": filename,
+            },
+        )
+
+        return resp

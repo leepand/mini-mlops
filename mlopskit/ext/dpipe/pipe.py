@@ -10,6 +10,7 @@ from mlopskit.ext.store.tinydb import TinyDB, Query
 from mlopskit.ext.store.tinydb.tinydb_serialization import SerializationMiddleware
 from mlopskit.ext.store.tinydb.tinydb_serializers import DateTimeSerializer
 import mlopskit.ext.shellkit as sh
+from mlopskit.pastry.utils import fsync_open
 
 import cachetools
 from tqdm import tqdm
@@ -684,6 +685,7 @@ class Pipe(PipeBase):
         nrecent=0,
         merge_mode=None,
         cached=True,
+        force=True,
     ):
         """
 
@@ -744,7 +746,12 @@ class Pipe(PipeBase):
             else:
                 raise ValueError("invalid merge mode")
 
-        filessync = self._pullpush_model(filespull, "get")
+        if force:
+            files_to_clone = [f["filename"] for f in filesremote]
+        else:
+            files_to_clone = filespull
+
+        filessync = self._pullpush_model(files_to_clone, "get", cnxn=self.cnxnapi)
 
         # scan local files after pull
         fileslocal, _ = self.scan_local(files=filessync, attributes=True)
@@ -1010,17 +1017,22 @@ class Pipe(PipeBase):
 
         def scan_filebase():
             cnxn = self.cnxnapi
+
             if cnxn.exists(self.remote_prefix)["file_exists_result"] == 1:
-                filesall = cnxn.listdir_attr(
+                filesall = []
+                _filesall = cnxn.listdir_attr(
                     self.remote_prefix,
                     name=self.name,
                     version=self.version,
                     profile=self.api.profile,
                 )
-                if isinstance(filesall, dict):
-                    if filesall["status"] == "failed":
-                        print(filesall["details"])
+                if isinstance(_filesall, dict):
+                    if _filesall["status"] == "failed":
+                        print(_filesall["details"])
                         filesall = []
+                    else:
+                        print(_filesall, "_filesall")
+                        filesall = _filesall["filesall"]
             else:
                 filesall = []
             # cnxn.close_del()
@@ -1050,6 +1062,7 @@ class Pipe(PipeBase):
 
         filessync = []
         pbar = ""
+
         for fname in tqdm(files):
             pbar = pbar + fname
             fnameremote = self.remote_prefix + fname
@@ -1058,8 +1071,28 @@ class Pipe(PipeBase):
             if op == "put":
                 cnxn.put(fnamelocal, fnameremote)
             elif op == "get":
-                fnamelocalpath.parent.mkdir(parents=True, exist_ok=True)
-                cnxn.clone(fnameremote, fnamelocal)
+                # fnamelocalpath.parent.mkdir(parents=True, exist_ok=True)
+                # cnxn.clone(fnameremote, fnamelocal)
+                resp = cnxn.clone(
+                    name=self.name,
+                    version=self.version,
+                    filename=fname,
+                    profile=self.api.profile,
+                )
+                if isinstance(resp, dict):
+                    if resp["status"] == "failed":
+                        return resp["details"]
+
+                resp_files = resp
+                parent_directory = os.path.dirname(fname)
+                fnamelocalpath = os.path.join(os.getcwd(), fname)
+                print(fnamelocalpath, resp_files)
+                sh.mkdir(parent_directory)
+
+                # print(resp_files, "resp_files", fname, "elko", fnamelocalpath)
+                with fsync_open(fnamelocalpath, "wb") as file:
+                    for data in resp_files.iter_content(chunk_size=1024):
+                        file.write(data)
             elif op == "remove":
                 try:
                     cnxn.remove(fnameremote)
@@ -1072,8 +1105,6 @@ class Pipe(PipeBase):
 
             logging.info("synced files {}".format(fname))
             filessync.append(fname)
-
-        self._disconnect(cnxn)
 
         return filessync
 
