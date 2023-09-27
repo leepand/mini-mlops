@@ -513,10 +513,8 @@ def cmd_status_branch(repo):
 
 def tree_to_dict(repo, ref, prefix=""):
     ret = dict()
-    try:
-        tree_sha = object_find(repo, ref, fmt=b"tree")
-    except:
-        tree_sha = ref
+    tree_sha = object_find(repo, ref, fmt=b"tree")
+
     tree = object_read(repo, tree_sha)
 
     for leaf in tree.items:
@@ -534,10 +532,12 @@ def tree_to_dict(repo, ref, prefix=""):
         # blob, so a regular file), or recurse (if it's another tree,
         # so a subdir)
         if is_subtree:
+            # ret.update(tree_to_dict(repo, leaf.sha, full_path))
             try:
                 ret.update(tree_to_dict(repo, leaf.sha, full_path))
             except:
                 continue
+
         else:
             ret[full_path] = leaf.sha
 

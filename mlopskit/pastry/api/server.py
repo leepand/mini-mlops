@@ -12,8 +12,12 @@ from mlopskit.ext.store.yaml.yaml_data import YAMLDataSet
 from mlopskit.utils import kill9_byport
 from mlopskit.utils.read_log import LogReader
 from mlopskit.utils.file_utils import data_dir
+import mlopskit.ext.shellkit as sh
+from mlopskit.ext.dpipe import api as pipe_api
+from mlopskit.ext.dpipe.io.file_base import get_relative_path, human_readable_file_size
 
 from datetime import datetime
+from time import ctime
 
 
 api = FastAPI()
@@ -204,3 +208,73 @@ async def pull_file(name: str, version: str):
     mlflow_remote_base_path = mlflow_art_path
     file_to_pull = os.path.join(mlflow_remote_base_path, source)
     return FileResponse(path=file_to_pull, filename=file_to_pull)
+
+
+@api.get("/models/clone")
+async def clone_file(name: str, version: str):
+
+    source = mlflow_client.get_model_version_download_url(name, version)
+    mlflow_remote_base_path = mlflow_art_path
+    file_to_pull = os.path.join(mlflow_remote_base_path, source)
+    return FileResponse(path=file_to_pull, filename=file_to_pull)
+
+
+@api.get("/api/git-bus/models/pipes")
+async def pipes(name: str, version: str, profile: str):
+    pipe_api_instance = pipe_api.APIClient(profile=profile)
+    base_dir = pipe_api_instance.dir
+    if name == "all":
+        dir_to_list = os.path.join(base_dir)
+    else:
+        if version is None:
+            dir_to_list = os.path.join(base_dir, name)
+        else:
+            dir_to_list = os.path.join(base_dir, name, version)
+
+    files = [str(file) for file in sh.walkfiles(dir_to_list)]
+    dirs = [str(file) for file in sh.walkdirs(dir_to_list)]
+    return {"files": files, "dirs": dirs, "status": "ok"}
+
+
+@api.get("/api/git-bus/models/file_exists")
+async def file_exists(file_or_dir: str):
+    if str(file_or_dir).startswith("~"):
+        file_path = os.path.expanduser(file_or_dir)
+    if os.path.exists(file_path):
+        file_exists_result = 1
+    else:
+        file_exists_result = 0
+    return {"file_exists_result": file_exists_result, "status": "ok"}
+
+
+@api.get("/api/git-bus/models/listdir_attr")
+async def listdir_attr(file_or_dir: str, name: str, version: str, profile: str):
+
+    entries = list()
+    try:
+        pipe_api_instance = pipe_api.APIClient(profile=profile)
+        base_dir = pipe_api_instance.dir
+        if name == "all":
+            dir_to_list = os.path.join(base_dir)
+        else:
+            if version is None:
+                dir_to_list = os.path.join(base_dir, name)
+            else:
+                dir_to_list = os.path.join(base_dir, name, version)
+
+        for file in sh.walkfiles(dir_to_list):
+            entries.append(
+                {
+                    "filename": file.name,
+                    "size": human_readable_file_size(file.stat().st_size),
+                    "rel_path": get_relative_path(str(file), base_dir),
+                    "modified_at": ctime(file.stat().st_mtime),
+                    "crc": "{}-{}".format(
+                        str(file.stat().st_mtime), str(file.stat().st_size)
+                    ),
+                }
+            )
+
+        return {"filesall": entries, "status": "ok"}
+    except:
+        return {"status": "failed", "details": str(traceback.format_exc())}

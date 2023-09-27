@@ -211,7 +211,7 @@ def init_fromgit(project):
 @click.option(
     "--service",
     "-s",
-    help="service name",
+    help="service name:mlflow/model_server/all",
     type=str,
     default="all",
     show_default=True,
@@ -478,12 +478,25 @@ def pull(pipe, version, profile, preview):
 @click.option(
     "--preview", help="Preview", is_flag=True, default=True, show_default=True
 )
-def push(pipe, filename, version, exclude, toremote, profile, preview):
+@click.option(
+    "--torepo",
+    help="push origin to code repo for test",
+    is_flag=True,
+    default=False,
+    show_default=True,
+)
+def push(pipe, filename, version, exclude, toremote, profile, preview, torepo):
     """
     Push model and code from local repo to remote repo.
     """
     pipe_name = pipe
     try:
+        if torepo:
+            check_out_path = "tmp_path_for_commit"
+            if os.path.exists(check_out_path):
+                sh.rm(check_out_path)
+            cmd_checkout(commit="HEAD", path=check_out_path)
+            return
         pipe = Pipe(pipe_name, profile=profile)
         if preview:
             result = pipe.push(
