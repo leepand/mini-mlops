@@ -291,3 +291,33 @@ async def clone_file(name: str, version: str, filename: str, profile: str):
         return FileResponse(path=file, filename=file)
     except:
         return {"status": "failed", "details": str(traceback.format_exc())}
+
+
+@api.post("/api/git-bus/models/push")
+async def push_model(
+    name: str = Form(...),
+    version: str = Form(...),
+    profile: str = Form(...),
+    filename: str = Form(...),
+    artifact_location: str = File(...),
+    file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings),
+):
+    try:
+        if file:
+            pipe_api_instance = pipe_api.APIClient(profile=profile)
+            base_dir = pipe_api_instance.dir
+            if version is None:
+                base_file_path = os.path.join(base_dir, name)
+            else:
+                base_file_path = os.path.join(base_dir, name, version)
+
+            remotefile = os.path.join(base_file_path, filename)
+            parent_directory = os.path.dirname(remotefile)
+            sh.mkdir(parent_directory)
+
+            filename = await utils.save_file(file, remotefile)
+
+        return {"status": "ok", "details": f"model repo {remotefile} is created!"}
+    except:
+        return {"status": "failed", "details": str(traceback.format_exc())}

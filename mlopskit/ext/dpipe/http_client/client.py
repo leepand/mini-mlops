@@ -103,3 +103,18 @@ class GitBus(SDK):
         )
 
         return resp
+
+    def push(self, name, version, profile, fnamelocal, filename):
+        with open(fnamelocal, "rb") as f:
+            _f = {"file": f}
+            self.post(
+                f"/api/git-bus/{self.name}/push",
+                as_json=True,
+                data={
+                    "name": name,
+                    "version": version,
+                    "profile": str(profile),
+                    "filename": filename,
+                },
+                files=_f,
+            )

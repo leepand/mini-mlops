@@ -610,7 +610,6 @@ class Pipe(PipeBase):
             response, data = c
         else:
             filesall, filenames = self._list_model()
-            print(filesall, filenames, "filesall, filenames")
             response, data = (
                 (),
                 filesall,
@@ -837,12 +836,19 @@ class Pipe(PipeBase):
 
         if not cached:
             self._cache_scan.clear()
-
+        base_path = os.getcwd()
         if files is not None:
             filespush = files
             fileslocal, _ = self.scan_local(fromdb=True, attributes=True)
         else:
+            files = [
+                filepath
+                for filepath in sh.walkfiles(base_path, exclude="/*.git/")
+                if ".git" not in str(filepath)
+            ]
+
             filesremote = _tinydb_last(self.dbfiles, "local")
+            print(filesremote, "filesremote_why")
             fileslocal, _ = self.scan_local(fromdb=fromdb, attributes=True)
             if self.mode != "all":
                 self.is_synced(israise=True)
@@ -857,7 +863,8 @@ class Pipe(PipeBase):
             print("pushing: {:.2f}MB".format(filespush_size / 2**20))
             return filespush
 
-        filessync = self._pullpush_model(filespush, "put")
+        print(filespush, "filespush")
+        filessync = self._pullpush_model(filespush, "put", cnxn=self.cnxnapi)
 
         # get files on remote after push
         filesremote = self.scan_remote(cached=False, attributes=True)[1]
@@ -1031,7 +1038,6 @@ class Pipe(PipeBase):
                         print(_filesall["details"])
                         filesall = []
                     else:
-                        print(_filesall, "_filesall")
                         filesall = _filesall["filesall"]
             else:
                 filesall = []
@@ -1069,7 +1075,14 @@ class Pipe(PipeBase):
             fnamelocalpath = self.dirpath / fname
             fnamelocal = str(PurePosixPath(fnamelocalpath))
             if op == "put":
-                cnxn.put(fnamelocal, fnameremote)
+                # cnxn.push(fnamelocal, fnameremote)
+                cnxn.push(
+                    name=self.name,
+                    version=self.version,
+                    profile=self.api.profile,
+                    fnamelocal=fnamelocal,
+                    filename=fname,
+                )
             elif op == "get":
                 # fnamelocalpath.parent.mkdir(parents=True, exist_ok=True)
                 # cnxn.clone(fnameremote, fnamelocal)
@@ -1086,9 +1099,7 @@ class Pipe(PipeBase):
                 resp_files = resp
                 parent_directory = os.path.dirname(fname)
                 fnamelocalpath = os.path.join(os.getcwd(), fname)
-                print(fnamelocalpath, resp_files)
                 sh.mkdir(parent_directory)
-
                 # print(resp_files, "resp_files", fname, "elko", fnamelocalpath)
                 with fsync_open(fnamelocalpath, "wb") as file:
                     for data in resp_files.iter_content(chunk_size=1024):
@@ -1104,7 +1115,7 @@ class Pipe(PipeBase):
                 raise ValueError("invalid luigi operation")
 
             logging.info("synced files {}".format(fname))
-            filessync.append(fname)
+            filessync.append(fnamelocalpath)
 
         return filessync
 
