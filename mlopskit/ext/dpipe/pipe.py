@@ -11,6 +11,7 @@ from mlopskit.ext.store.tinydb.tinydb_serialization import SerializationMiddlewa
 from mlopskit.ext.store.tinydb.tinydb_serializers import DateTimeSerializer
 import mlopskit.ext.shellkit as sh
 from mlopskit.pastry.utils import fsync_open
+from .io.file_base import get_relative_path
 
 import cachetools
 from tqdm import tqdm
@@ -50,6 +51,11 @@ def _tinydb_last(db, getkey=None, sortkey="updated_at"):
 
 
 def _tinydb_insert(db, filessync, filesremote, fileslocal):
+    fileslocal = str(fileslocal)
+    filesremote = str(filesremote)
+    if isinstance(filessync, list):
+        filessync = [str(file) for file in filessync]
+    # print(filessync,type(filessync),"filesremote",filesremote,type(filesremote),"fileslocal",fileslocal,type(fileslocal))
     if db is not None:
         db.insert(
             {
@@ -63,9 +69,10 @@ def _tinydb_insert(db, filessync, filesremote, fileslocal):
 
 
 def _files_new(filesfrom, filesto):
-    filesfrom = [f["filename"] for f in filesfrom]
-    filesto = [f["filename"] for f in filesto]
-    return list(set(filesfrom) - set(filesto))
+    # print(filesfrom,"filesfrom",filesto)
+    _filesfrom = [f["filename"] for f in filesfrom if "filename" in f]
+    _filesto = [f["filename"] for f in filesto if "filename" in f]
+    return list(set(_filesfrom) - set(_filesto))
 
 
 def _filenames(list_):
@@ -74,8 +81,7 @@ def _filenames(list_):
 
 def _files_mod(filesfrom, filesto, key="crc"):
     def _tinydb_to_filedate_dict(query):
-        return {k: v for (k, v) in [(d["filename"], d[key]) for d in query]}
-
+        return {k: v for (k, v) in [(d["filename"], d[key]) for d in query if "filename" in d]}
     filesto = _tinydb_to_filedate_dict(filesto)
     filesfrom = _tinydb_to_filedate_dict(filesfrom)
     if filesto and filesfrom:
@@ -194,14 +200,17 @@ class PipeBase(object):
 
         """
 
+        new_dir = os.path.join(self.dir, self.version)
+        new_dirpath = Path(new_dir)
+
         if files is None:
             if fromdb:
                 files = _tinydb_last(self.dbfiles, "local")
                 files = _filenames(files)
             else:
                 files = [
-                    str(PurePosixPath(p.relative_to(self.dir)))
-                    for p in self.dirpath.glob("**/*")
+                    str(PurePosixPath(p.relative_to(new_dir)))
+                    for p in new_dirpath.glob("**/*")
                     if not p.is_dir()
                 ]
 
@@ -209,7 +218,7 @@ class PipeBase(object):
             files = _apply_fname_filter(files, include, exclude)
 
         def getattrib(fname):
-            p = Path(self.dirpath) / fname
+            p = Path(new_dirpath) / fname
             if not p.exists():
                 if on_not_exist == "warn":
                     warnings.warn("Local file {} does not exist".format(fname))
@@ -348,6 +357,20 @@ class PipeBase(object):
 
         """
         copytree(dir, self.dir, move)
+
+    def add_files(self, path=None):
+        center_local_base_path = os.path.join(self.dirpath, self.version)
+        base_current_path = os.getcwd()
+        if path is None:
+            sh.cp(base_current_path, center_local_base_path)
+        else:
+            if os.path.isabs(path):
+                raise Exception(
+                    "This function requires path to be relative to the repository's root"
+                )
+            base_current_path_sub = os.path.join(base_current_path, path)
+            sh.cp(base_current_path_sub, center_local_base_path)
+        # print(center_local_base_path,self.name,self.version, self.api.profile,"center_local_base_path")
 
     def delete_files(self, files=None, confirm=True, all_local=None):
         """
@@ -843,15 +866,18 @@ class Pipe(PipeBase):
         else:
             files = [
                 filepath
-                for filepath in sh.walkfiles(base_path, exclude="/*.git/")
+                for filepath in sh.walkfiles(
+                    base_path, exclude=["*.git", "*.ipynb_checkpoints"]
+                )
                 if ".git" not in str(filepath)
             ]
 
+            # rel_path_files = [get_relative_path(str(file), base_path) for file in files]
             filesremote = _tinydb_last(self.dbfiles, "local")
-            print(filesremote, "filesremote_why")
             fileslocal, _ = self.scan_local(fromdb=fromdb, attributes=True)
-            if self.mode != "all":
-                self.is_synced(israise=True)
+            # print(filesremote, fileslocal, "filesremote_why")
+            # if self.mode != "all":
+            #     self.is_synced(israise=False)
             filespush = _files_diff(
                 fileslocal, filesremote, self.mode, include, exclude, nrecent
             )
@@ -863,7 +889,7 @@ class Pipe(PipeBase):
             print("pushing: {:.2f}MB".format(filespush_size / 2**20))
             return filespush
 
-        print(filespush, "filespush")
+        # print(filespush, "filespush")
         filessync = self._pullpush_model(filespush, "put", cnxn=self.cnxnapi)
 
         # get files on remote after push
@@ -1072,10 +1098,11 @@ class Pipe(PipeBase):
         for fname in tqdm(files):
             pbar = pbar + fname
             fnameremote = self.remote_prefix + fname
-            fnamelocalpath = self.dirpath / fname
+            fnamelocalpath = self.dirpath / self.version / fname
             fnamelocal = str(PurePosixPath(fnamelocalpath))
             if op == "put":
                 # cnxn.push(fnamelocal, fnameremote)
+                fname = str(fname)
                 cnxn.push(
                     name=self.name,
                     version=self.version,

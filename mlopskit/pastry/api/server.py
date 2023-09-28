@@ -299,7 +299,6 @@ async def push_model(
     version: str = Form(...),
     profile: str = Form(...),
     filename: str = Form(...),
-    artifact_location: str = File(...),
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
 ):
@@ -310,7 +309,7 @@ async def push_model(
             if version is None:
                 base_file_path = os.path.join(base_dir, name)
             else:
-                base_file_path = os.path.join(base_dir, name, version)
+                base_file_path = os.path.join(base_dir, name, "v8", version)
 
             remotefile = os.path.join(base_file_path, filename)
             parent_directory = os.path.dirname(remotefile)
