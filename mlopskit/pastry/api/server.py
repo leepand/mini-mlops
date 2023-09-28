@@ -309,7 +309,7 @@ async def push_model(
             if version is None:
                 base_file_path = os.path.join(base_dir, name)
             else:
-                base_file_path = os.path.join(base_dir, name, "v8", version)
+                base_file_path = os.path.join(base_dir, name, version)
 
             remotefile = os.path.join(base_file_path, filename)
             parent_directory = os.path.dirname(remotefile)

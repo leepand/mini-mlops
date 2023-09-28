@@ -81,7 +81,11 @@ def _filenames(list_):
 
 def _files_mod(filesfrom, filesto, key="crc"):
     def _tinydb_to_filedate_dict(query):
-        return {k: v for (k, v) in [(d["filename"], d[key]) for d in query if "filename" in d]}
+        return {
+            k: v
+            for (k, v) in [(d["filename"], d[key]) for d in query if "filename" in d]
+        }
+
     filesto = _tinydb_to_filedate_dict(filesto)
     filesfrom = _tinydb_to_filedate_dict(filesfrom)
     if filesto and filesfrom:
