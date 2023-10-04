@@ -54,6 +54,11 @@ from .ext.gitkit.gitRepository import (
 )
 from .ext.gitkit.ref import ref_list, show_ref
 
+from .ext.dpipe import api as git_api
+from .ext.dpipe import pipe as git_pipe
+from .utils.math_util import is_number
+from .utils.git_utils import git_pipe_gen
+
 from structlog import get_logger
 
 logger = get_logger(__name__)
@@ -102,6 +107,8 @@ def init(project, model, version):
     # make_containing_dirs(project_path)
     # sh.mkdir(project_path)
     repo_create(project_path)
+    sh.write(f"{project_path}/.name", model)
+    sh.write(f"{project_path}/.version", version)
     sh.mkdir(f"{project_path}/src")
     sh.mkdir(f"{project_path}/config")
     sh.mkdir(f"{project_path}/notebooks")
@@ -618,19 +625,19 @@ def killport(port, confirm):
 
 @mlopskit_cli.command("add", no_args_is_help=True)
 @click.option("--path", help="model path", default=".", required=False)
-def cmd_add(path):
+@click.option("--profile", help="model deploy env", default="dev", required=True)
+@click.option("--version", help="model version", default="0", required=True)
+@click.option("--name", help="model name", default="0", required=True)
+def cmd_add(path, profile, version, name):
     """
     Add files contents to the index.
     """
     try:
-        repo = repo_find()
-        # paths = list(sh.walkfiles())
-        if os.path.isdir(path):
-            paths_all = list(sh.walk(path, exclude=".git"))
-            files = [file for file in paths_all if os.path.isfile(file)]
-        else:
-            files = [path]
-        repo_add(repo, files)
+        _pipe, _, _ = git_pipe_gen(name=name, version=version, profile=profile)
+        if path == ".":
+            path = None
+        _pipe.add_files(path=path)
+
     except Exception as e:
         click.echo(e)
 
@@ -823,6 +830,53 @@ def _cmd_checkout(commit, path):
     """
     try:
         cmd_checkout(commit=commit, path=path)
+
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("clone", no_args_is_help=True)
+@click.option(
+    "--name",
+    "-n",
+    help="The model name",
+    required=True,
+)
+@click.option(
+    "--version",
+    "-v",
+    help="The model version",
+    required=True,
+    default="v1",
+    show_default=True,
+)
+@click.option(
+    "--profile",
+    "-p",
+    help="The model delploy env(remote)",
+    required=True,
+    default="dev",
+    show_default=True,
+)
+@click.option(
+    "--force",
+    "-f",
+    help="force pull when model code is not changed",
+    required=True,
+    default=True,
+    show_default=True,
+)
+def cmd_git_clone(name, version, profile, force):
+    """
+    Provide content of repository objects.
+    """
+    try:
+        _pipe, model_name, model_version = git_pipe_gen(
+            name=name, version=version, profile=profile
+        )
+        model_path = os.path.join(model_name, model_version)
+        with sh.cd(model_path):
+            _pipe.pull(force=force)
 
     except Exception as e:
         click.echo(e)

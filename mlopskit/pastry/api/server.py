@@ -259,9 +259,9 @@ async def listdir_attr(file_or_dir: str, name: str, version: str, profile: str):
                 {
                     "human_size": human_size,
                     "filename2": file.name,
-                    "filename": get_relative_path(str(file), base_dir),
+                    "filename": get_relative_path(str(file), dir_to_list),
                     "size": file.stat().st_size,
-                    "rel_path": get_relative_path(str(file), base_dir),
+                    "rel_path": get_relative_path(str(file), dir_to_list),
                     "modified_at": ctime(file.stat().st_mtime),
                     "crc": "{}-{}".format(
                         str(file.stat().st_mtime), str(file.stat().st_size)
@@ -286,7 +286,7 @@ async def clone_file(name: str, version: str, filename: str, profile: str):
                 base_file_path = os.path.join(base_dir, name)
             else:
                 base_file_path = os.path.join(base_dir, name, version)
-        file = os.path.join(base_dir, filename)
+        file = os.path.join(base_file_path, filename)
         # return {"status":"ok","files":FileResponse(path=file, filename=file)}
         return FileResponse(path=file, filename=file)
     except:

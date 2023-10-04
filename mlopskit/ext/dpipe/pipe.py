@@ -95,7 +95,10 @@ def _files_mod(filesfrom, filesto, key="crc"):
 
 
 def _files_sort(files, sortby="filename"):
-    return sorted(files, key=lambda k: k[sortby])
+    if len(files) > 0 and sortby in files[0]:
+        return sorted(files, key=lambda k: k[sortby])
+    else:
+        return files
 
 
 def _files_diff(filesfrom, filesto, mode, include, exclude, nrecent=0):
@@ -1130,7 +1133,8 @@ class Pipe(PipeBase):
                 resp_files = resp
                 parent_directory = os.path.dirname(fname)
                 fnamelocalpath = os.path.join(os.getcwd(), fname)
-                sh.mkdir(parent_directory)
+                if parent_directory:
+                    sh.mkdir(parent_directory)
                 # print(resp_files, "resp_files", fname, "elko", fnamelocalpath)
                 with fsync_open(fnamelocalpath, "wb") as file:
                     for data in resp_files.iter_content(chunk_size=1024):

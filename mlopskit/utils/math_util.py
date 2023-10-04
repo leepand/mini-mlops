@@ -2,6 +2,14 @@ import numpy as np
 import scipy.signal
 
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def discount(x, gamma):
     """
     computes discounted sums along 0th dimension of x.
