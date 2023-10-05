@@ -880,3 +880,36 @@ def cmd_git_clone(name, version, profile, force):
 
     except Exception as e:
         click.echo(e)
+
+
+@mlopskit_cli.command("deploy", no_args_is_help=True)
+@click.option("--name", "-n", help="model name", default="0", required=True)
+@click.option("--version", "-v", help="model version", default="0", required=True)
+@click.option(
+    "--profile", help="env name", required=True, default="dev", show_default=True
+)
+@click.option("--version", help="version", is_flag=False, show_default=True)
+@click.option(
+    "--exclude", help="exclude", is_flag=False, default="*.txt", show_default=True
+)
+@click.option(
+    "--preview", help="Preview", is_flag=True, default=True, show_default=True
+)
+def deploy(name, version, exclude, profile, preview):
+    """
+    Deploy model and code from local repo to remote repo.
+    """
+    try:
+        _pipe, _, _ = git_pipe_gen(name=name, version=version, profile=profile)
+        _exclude = []
+        _exclude.append(exclude)
+        _exclude.append("*.log")
+        if preview:
+            result = _pipe.push_preview(exclude=_exclude)
+            logger.info(f"Push codes:{result}")
+        else:
+            result = _pipe.push(exclude=_exclude)
+            logger.info(f"Push codes:{result}")
+
+    except Exception as e:
+        click.echo(e)
