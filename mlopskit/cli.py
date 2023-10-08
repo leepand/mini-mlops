@@ -6,6 +6,7 @@ from datetime import datetime
 
 import click
 import git
+import json
 
 # import rich_click as click
 
@@ -218,7 +219,7 @@ def init_fromgit(project):
 @click.option(
     "--service",
     "-s",
-    help="service name:mlflow/model_server/all",
+    help="service name: main/mlflow/model_server/all",
     type=str,
     default="all",
     show_default=True,
@@ -910,6 +911,27 @@ def deploy(name, version, exclude, profile, preview):
         else:
             result = _pipe.push(exclude=_exclude)
             logger.info(f"Push codes:{result}")
+
+    except Exception as e:
+        click.echo(e)
+
+
+@mlopskit_cli.command("local", no_args_is_help=True)
+@click.option(
+    "--profile",
+    "-p",
+    help="Profile name",
+    default="dev",
+    show_default=True,
+)
+def list_local(profile):
+    """
+    List local model repos gived profile name(env).
+    """
+    try:
+        api = git_api.APIClient(profile=profile)
+        pipes = api.list_local_pipes()
+        print(json.dumps(pipes, indent=4, sort_keys=True))
 
     except Exception as e:
         click.echo(e)
