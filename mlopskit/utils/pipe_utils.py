@@ -6,7 +6,9 @@ import json
 # **********************************
 
 import hashlib
+from mlopskit import make
 
+CENTER_CONFIG =make("config/x")
 
 def filemd5(fname):
     hash_md5 = hashlib.md5()
@@ -62,7 +64,7 @@ class ConfigManager(object):
             filecfg = os.path.expanduser(filecfg)
         self.filecfg = filecfg
 
-    def init(self, config=None, server="https://pipe.mlopskit.tech", reset=False):
+    def init(self, config=None, server=CENTER_CONFIG["gitserver_remote_url"], reset=False):
         """
 
         Initialize config with content
